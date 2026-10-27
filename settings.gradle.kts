@@ -18,3 +18,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "ActuaGT"
 include(":shared")
+include(":androidApp")
