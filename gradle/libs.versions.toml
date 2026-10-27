@@ -1,0 +1,59 @@
+# ActuaGT version catalog — single source of truth for dependency versions.
+# Convention: code and comments in English; user-facing (UI) copy in Spanish.
+
+[versions]
+# Core toolchain (verified coherent set: Kotlin 2.3.0 + CMP 1.10.0)
+kotlin = "2.3.0"
+compose = "1.10.0"
+agp = "8.13.0"
+# Networking
+ktor = "3.4.0"
+# Navigation
+voyager = "1.1.0-alpha03"
+# Firebase for KMP (GitLive Kotlin SDK: Auth, Firestore, Storage)
+firebase-gitlive = "2.5.0"
+# Kotlinx support libraries
+kotlinx-coroutines = "1.10.2"
+kotlinx-serialization = "1.8.1"
+
+[libraries]
+# --- Ktor: shared HTTP client (engines are declared per platform source set) ---
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+ktor-serialization-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+
+# --- Voyager: Compose Multiplatform navigation ---
+voyager-navigator = { module = "cafe.adriel.voyager:voyager-navigator", version.ref = "voyager" }
+voyager-screenmodel = { module = "cafe.adriel.voyager:voyager-screenmodel", version.ref = "voyager" }
+voyager-transitions = { module = "cafe.adriel.voyager:voyager-transitions", version.ref = "voyager" }
+voyager-tab-navigator = { module = "cafe.adriel.voyager:voyager-tab-navigator", version.ref = "voyager" }
+
+# --- Firebase via GitLive Kotlin SDK (usable from commonMain) ---
+gitlive-firebase-app = { module = "dev.gitlive:firebase-app", version.ref = "firebase-gitlive" }
+gitlive-firebase-auth = { module = "dev.gitlive:firebase-auth", version.ref = "firebase-gitlive" }
+gitlive-firebase-firestore = { module = "dev.gitlive:firebase-firestore", version.ref = "firebase-gitlive" }
+gitlive-firebase-storage = { module = "dev.gitlive:firebase-storage", version.ref = "firebase-gitlive" }
+
+# --- Compose Multiplatform (versions are managed by the Compose Gradle plugin) ---
+compose-runtime = { module = "org.jetbrains.compose.runtime:runtime" }
+compose-foundation = { module = "org.jetbrains.compose.foundation:foundation" }
+compose-material3 = { module = "org.jetbrains.compose.material3:material3" }
+compose-ui = { module = "org.jetbrains.compose.ui:ui" }
+compose-resources = { module = "org.jetbrains.compose.components:components-resources" }
+compose-ui-tooling-preview = { module = "org.jetbrains.compose.components:components-ui-tooling-preview" }
+compose-material-icons = { module = "org.jetbrains.compose.material:material-icons-extended" }
+
+# --- Testing ---
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+
+[plugins]
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "compose" }
+android-library = { id = "com.android.library", version.ref = "agp" }
