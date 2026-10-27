@@ -10,6 +10,8 @@ compose = "1.10.0"
 compose-material3 = "1.9.0"
 compose-material-icons = "1.7.3"
 agp = "8.13.0"
+# Firebase Android BoM (pins versions for GitLive's Android artifacts)
+firebase-bom = "35.1.0"
 # Firebase init plugin for the Android app shell
 google-services = "4.4.2"
 # Android app shell entry point (ComponentActivity + setContent)
@@ -42,6 +44,9 @@ voyager-navigator = { module = "cafe.adriel.voyager:voyager-navigator", version.
 voyager-screenmodel = { module = "cafe.adriel.voyager:voyager-screenmodel", version.ref = "voyager" }
 voyager-transitions = { module = "cafe.adriel.voyager:voyager-transitions", version.ref = "voyager" }
 voyager-tab-navigator = { module = "cafe.adriel.voyager:voyager-tab-navigator", version.ref = "voyager" }
+
+# --- Firebase Android BoM: version platform for GitLive's Android artifacts ---
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
 
 # --- Firebase via GitLive Kotlin SDK (usable from commonMain) ---
 gitlive-firebase-app = { module = "dev.gitlive:firebase-app", version.ref = "firebase-gitlive" }

@@ -68,6 +68,8 @@ kotlin {
         }
 
         androidMain.dependencies {
+            // Firebase Android BoM: resolves versions for GitLive's Android artifacts
+            implementation(platform(libs.firebase.bom))
             // Android HTTP engine for Ktor
             implementation(libs.ktor.client.okhttp)
         }
