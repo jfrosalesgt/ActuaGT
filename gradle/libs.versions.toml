@@ -45,9 +45,6 @@ voyager-screenmodel = { module = "cafe.adriel.voyager:voyager-screenmodel", vers
 voyager-transitions = { module = "cafe.adriel.voyager:voyager-transitions", version.ref = "voyager" }
 voyager-tab-navigator = { module = "cafe.adriel.voyager:voyager-tab-navigator", version.ref = "voyager" }
 
-# --- Firebase Android BoM: version platform for GitLive's Android artifacts ---
-firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
-
 # --- Firebase via GitLive Kotlin SDK (usable from commonMain) ---
 gitlive-firebase-app = { module = "dev.gitlive:firebase-app", version.ref = "firebase-gitlive" }
 gitlive-firebase-auth = { module = "dev.gitlive:firebase-auth", version.ref = "firebase-gitlive" }
