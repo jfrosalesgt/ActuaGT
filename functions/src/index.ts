@@ -144,14 +144,17 @@ export const onratificationcreated = onDocumentCreated(
       logger.warn(`Ratification for missing report ${reportId} ignored.`);
       return;
     }
-    if (!shouldEscalate(count, parent.data()?.priority)) {
-      return;
+    // The dashboard orders by this counter, so it is persisted on every
+    // ratification; priority escalates only at the threshold.
+    const updates: Record<string, unknown> = { ratificationsCount: count };
+    if (shouldEscalate(count, parent.data()?.priority)) {
+      updates.priority = HIGH_PRIORITY;
+      updates.escalatedAt = Date.now();
     }
-    await parentRef.update({
-      priority: HIGH_PRIORITY,
-      ratificationsCount: count,
-      escalatedAt: Date.now(),
-    });
-    logger.info(`Report ${reportId} escalated to high priority (${count} ratifications).`);
+    await parentRef.update(updates);
+    logger.info(`Report ${reportId} has ${count} ratifications.`);
+    if (updates.priority === HIGH_PRIORITY) {
+      logger.info(`Report ${reportId} escalated to high priority.`);
+    }
   }
 );

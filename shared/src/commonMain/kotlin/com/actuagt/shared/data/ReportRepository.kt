@@ -10,6 +10,9 @@ interface ReportRepository {
     // Public incidents, kept in sync from Firestore.
     val verifiedFeed: Flow<List<IncidentReport>>
 
+    // Incidents of one zone, sorted by ratification count (highest first).
+    fun observeZoneReports(zone: String): Flow<List<IncidentReport>>
+
     // Stores a citizen report for official review. Returns the new document id.
     suspend fun savePendingReport(report: IncidentReport): Result<String>
 
@@ -19,4 +22,8 @@ interface ReportRepository {
 
     // Uploads the photo bytes to Firebase Storage. Returns the download URL.
     suspend fun uploadReportPhoto(reportId: String, photo: CapturedPhoto): Result<String>
+
+    // Uploads the "finished work" proof photo and marks the report resolved.
+    // Returns the proof photo download URL.
+    suspend fun resolveReport(reportId: String, proofPhoto: CapturedPhoto): Result<String>
 }

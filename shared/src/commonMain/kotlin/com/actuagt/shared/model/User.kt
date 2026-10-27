@@ -18,4 +18,5 @@ data class User(
     val photoUrl: String? = null,
     val isAnonymous: Boolean = false,
     val role: UserRole = UserRole.CITIZEN,
+    val zone: String = "",
 )
