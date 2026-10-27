@@ -45,4 +45,6 @@ android {
 dependencies {
     implementation(project(":shared"))
     implementation(libs.androidx.activity.compose)
+    // Firebase Android BoM: resolves versions for transitive Firebase artifacts
+    implementation(platform(libs.firebase.bom))
 }
