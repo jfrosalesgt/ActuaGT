@@ -7,6 +7,7 @@ import com.actuagt.shared.model.Ratification
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.firestore.firestore
+import dev.gitlive.firebase.firestore.where
 import dev.gitlive.firebase.storage.FirebaseStorage
 import dev.gitlive.firebase.storage.storage
 import dev.gitlive.firebase.storage.storageMetadata
@@ -22,7 +23,7 @@ class FirebaseReportRepository(
 
     override val verifiedFeed: Flow<List<IncidentReport>> =
         firestore.collection(INCIDENTS_COLLECTION)
-            .whereEqualTo(STATUS_FIELD, VERIFIED_STATUS)
+            .where(STATUS_FIELD, equalTo = VERIFIED_STATUS)
             .snapshots
             .map { snapshot ->
                 snapshot.documents.map { it.data<IncidentReport>().copy(id = it.id) }
@@ -44,7 +45,7 @@ class FirebaseReportRepository(
 
     override fun observeZoneReports(zone: String): Flow<List<IncidentReport>> =
         firestore.collection(INCIDENTS_COLLECTION)
-            .whereEqualTo(ZONE_FIELD, zone)
+            .where(ZONE_FIELD, equalTo = zone)
             .snapshots
             .map { snapshot ->
                 snapshot.documents.map { it.data<IncidentReport>().copy(id = it.id) }
