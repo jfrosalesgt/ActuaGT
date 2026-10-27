@@ -7,6 +7,7 @@
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
+    "test": "npm run build && node --test \"test/**/*.test.cjs\"",
     "serve": "npm run build && firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log"
@@ -16,6 +17,7 @@
     "firebase-functions": "^7.4.0"
   },
   "devDependencies": {
+    "@types/node": "^22.10.0",
     "typescript": "^5.7.3"
   }
 }
