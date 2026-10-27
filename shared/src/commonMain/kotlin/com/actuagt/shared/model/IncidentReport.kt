@@ -16,6 +16,16 @@ enum class IncidentStatus {
     REJECTED,
 }
 
+// Report priority, raised to HIGH once a report gathers enough ratifications.
+@Serializable
+enum class ReportPriority {
+    @SerialName("normal")
+    NORMAL,
+
+    @SerialName("high")
+    HIGH,
+}
+
 // Citizen infrastructure report stored in Firestore.
 @Serializable
 data class IncidentReport(
@@ -27,6 +37,7 @@ data class IncidentReport(
     val longitude: Double = 0.0,
     val photoUrls: List<String> = emptyList(),
     val status: IncidentStatus = IncidentStatus.PENDING,
+    val priority: ReportPriority = ReportPriority.NORMAL,
     val reportedByUid: String = "",
     val createdAtEpochMillis: Long = 0L,
 )

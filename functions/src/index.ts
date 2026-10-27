@@ -12,6 +12,7 @@ import {
   MUSE_MODEL,
   parseVerdict,
 } from "./moderation";
+import { HIGH_PRIORITY, shouldEscalate } from "./escalation";
 
 initializeApp();
 
@@ -123,5 +124,34 @@ export const onpendingreportcreated = onDocumentCreated(
       });
       logger.info(`Report ${reportId} rejected: ${verdict.reason}`);
     }
+  }
+);
+
+// Priority rule: when a report gathers enough ratifications, raise it to
+// HIGH so officials see it first. Idempotent by design.
+export const onratificationcreated = onDocumentCreated(
+  "incidents/{reportId}/ratifications/{ratificationId}",
+  async (event) => {
+    const { reportId } = event.params;
+    const db = getFirestore();
+    const parentRef = db.collection("incidents").doc(reportId);
+    const count = (
+      await parentRef.collection("ratifications").count().get()
+    ).data().count;
+
+    const parent = await parentRef.get();
+    if (!parent.exists) {
+      logger.warn(`Ratification for missing report ${reportId} ignored.`);
+      return;
+    }
+    if (!shouldEscalate(count, parent.data()?.priority)) {
+      return;
+    }
+    await parentRef.update({
+      priority: HIGH_PRIORITY,
+      ratificationsCount: count,
+      escalatedAt: Date.now(),
+    });
+    logger.info(`Report ${reportId} escalated to high priority (${count} ratifications).`);
   }
 );

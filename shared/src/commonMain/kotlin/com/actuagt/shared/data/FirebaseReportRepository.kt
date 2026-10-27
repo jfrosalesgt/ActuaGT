@@ -34,14 +34,12 @@ class FirebaseReportRepository(
             .id
     }
 
-    override suspend fun addRatification(reportId: String, userUid: String): Result<Unit> = runCatching {
-        val ratification = Ratification(
-            reportId = reportId,
-            userUid = userUid,
-            createdAtEpochMillis = Clock.System.now().toEpochMilliseconds(),
-        )
-        firestore.collection(RATIFICATIONS_COLLECTION).add(ratification)
-        Unit
+    override suspend fun addRatification(ratification: Ratification): Result<String> = runCatching {
+        firestore.collection(INCIDENTS_COLLECTION)
+            .document(ratification.reportId)
+            .collection(RATIFICATIONS_COLLECTION)
+            .add(ratification.copy(id = ""))
+            .id
     }
 
     override suspend fun uploadReportPhoto(reportId: String, photo: CapturedPhoto): Result<String> =
