@@ -5,6 +5,10 @@
 # Core toolchain (verified coherent set: Kotlin 2.3.0 + CMP 1.10.0)
 kotlin = "2.3.0"
 compose = "1.10.0"
+# Latest stable releases available on Maven Central (verified 2026-10-27):
+# material3 and material-icons lag behind the Compose plugin version.
+compose-material3 = "1.9.0"
+compose-material-icons = "1.7.3"
 agp = "8.13.0"
 # Firebase init plugin for the Android app shell
 google-services = "4.4.2"
@@ -51,11 +55,11 @@ androidx-activity-compose = { module = "androidx.activity:activity-compose", ver
 # --- Compose Multiplatform (pinned to the Compose plugin version) ---
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose" }
-compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose" }
+compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose" }
 compose-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose" }
 compose-ui-tooling-preview = { module = "org.jetbrains.compose.components:components-ui-tooling-preview", version.ref = "compose" }
-compose-material-icons = { module = "org.jetbrains.compose.material:material-icons-extended", version.ref = "compose" }
+compose-material-icons = { module = "org.jetbrains.compose.material:material-icons-extended", version.ref = "compose-material-icons" }
 
 # --- Testing ---
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
