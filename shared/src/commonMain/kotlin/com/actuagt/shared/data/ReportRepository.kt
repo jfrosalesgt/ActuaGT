@@ -1,5 +1,6 @@
 package com.actuagt.shared.data
 
+import com.actuagt.shared.media.CapturedPhoto
 import com.actuagt.shared.model.IncidentReport
 import kotlinx.coroutines.flow.Flow
 
@@ -13,4 +14,7 @@ interface ReportRepository {
 
     // Records a citizen corroboration for a verified report.
     suspend fun addRatification(reportId: String, userUid: String): Result<Unit>
+
+    // Uploads the photo bytes to Firebase Storage. Returns the download URL.
+    suspend fun uploadReportPhoto(reportId: String, photo: CapturedPhoto): Result<String>
 }
