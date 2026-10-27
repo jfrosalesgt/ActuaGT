@@ -68,9 +68,11 @@ kotlin {
         }
 
         androidMain.dependencies {
-            // Firebase Android BoM: resolves versions for GitLive's Android artifacts
-            // NOTE: string notation required, platform(CatalogAccessor) is an error in Kotlin 2.3 (KT-58759).
-            implementation(platform("com.google.firebase:firebase-bom:${libs.versions.firebase.bom.get()}"))
+            // Pinned Firebase Android SDK (versions taken from firebase-bom 35.1.0).
+            implementation(libs.firebase.auth)
+            implementation(libs.firebase.common)
+            implementation(libs.firebase.firestore)
+            implementation(libs.firebase.storage)
             // Android HTTP engine for Ktor
             implementation(libs.ktor.client.okhttp)
         }
