@@ -42,6 +42,15 @@ class FirebaseReportRepository(
             .id
     }
 
+    override fun observeZoneReports(zone: String): Flow<List<IncidentReport>> =
+        firestore.collection(INCIDENTS_COLLECTION)
+            .whereEqualTo(ZONE_FIELD, zone)
+            .snapshots
+            .map { snapshot ->
+                snapshot.documents.map { it.data<IncidentReport>().copy(id = it.id) }
+                    .sortedByDescending { it.ratificationsCount }
+            }
+
     override suspend fun uploadReportPhoto(reportId: String, photo: CapturedPhoto): Result<String> =
         runCatching {
             val fileName = "${photo.metadata.capturedAtEpochMillis ?: Clock.System.now().toEpochMilliseconds()}.jpg"
@@ -53,15 +62,29 @@ class FirebaseReportRepository(
             reference.getDownloadUrl()
         }
 
+    override suspend fun resolveReport(reportId: String, proofPhoto: CapturedPhoto): Result<String> =
+        runCatching {
+            val photoUrl = uploadReportPhoto(reportId, proofPhoto).getOrThrow()
+            firestore.collection(INCIDENTS_COLLECTION)
+                .document(reportId)
+                .update(STATUS_FIELD to RESOLVED_STATUS, RESOLVED_PHOTO_FIELD to photoUrl)
+            photoUrl
+        }
+
     companion object {
         const val INCIDENTS_COLLECTION = "incidents"
         const val PENDING_REPORTS_COLLECTION = "pending_reports"
         const val RATIFICATIONS_COLLECTION = "ratifications"
         const val REPORT_PHOTOS_PATH = "report_photos"
         const val STATUS_FIELD = "status"
+        const val ZONE_FIELD = "zone"
+        const val RESOLVED_PHOTO_FIELD = "resolvedPhotoUrl"
         const val JPEG_CONTENT_TYPE = "image/jpeg"
 
         // Matches the IncidentStatus.VERIFIED serial name.
         const val VERIFIED_STATUS = "verified"
+
+        // Matches the IncidentStatus.RESOLVED serial name.
+        const val RESOLVED_STATUS = "resolved"
     }
 }

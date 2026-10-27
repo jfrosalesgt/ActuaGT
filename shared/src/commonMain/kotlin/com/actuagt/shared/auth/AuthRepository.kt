@@ -1,5 +1,6 @@
 package com.actuagt.shared.auth
 
+import com.actuagt.shared.model.User
 import kotlinx.coroutines.flow.Flow
 
 // Supplies the Google ID token collected from platform sign-in UI
@@ -19,4 +20,8 @@ interface AuthRepository {
     suspend fun signInWithGoogle(): Result<Unit>
 
     suspend fun signOut()
+
+    // Reads the app profile (role, zone) from the `users` collection.
+    // Returns null when the profile does not exist yet.
+    suspend fun getUserProfile(uid: String): User?
 }

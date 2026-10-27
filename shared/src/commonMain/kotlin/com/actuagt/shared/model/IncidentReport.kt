@@ -14,6 +14,9 @@ enum class IncidentStatus {
 
     @SerialName("rejected")
     REJECTED,
+
+    @SerialName("resolved")
+    RESOLVED,
 }
 
 // Report priority, raised to HIGH once a report gathers enough ratifications.
@@ -38,6 +41,9 @@ data class IncidentReport(
     val photoUrls: List<String> = emptyList(),
     val status: IncidentStatus = IncidentStatus.PENDING,
     val priority: ReportPriority = ReportPriority.NORMAL,
+    val zone: String = "",
+    val ratificationsCount: Int = 0,
+    val resolvedPhotoUrl: String? = null,
     val reportedByUid: String = "",
     val createdAtEpochMillis: Long = 0L,
 )

@@ -5,6 +5,9 @@ import dev.gitlive.firebase.auth.FirebaseAuth
 import dev.gitlive.firebase.auth.FirebaseUser
 import dev.gitlive.firebase.auth.GoogleAuthProvider
 import dev.gitlive.firebase.auth.auth
+import dev.gitlive.firebase.firestore.FirebaseFirestore
+import dev.gitlive.firebase.firestore.firestore
+import com.actuagt.shared.model.User
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -12,6 +15,7 @@ import kotlinx.coroutines.flow.map
 class FirebaseAuthRepository(
     private val auth: FirebaseAuth = Firebase.auth,
     private val googleIdTokenProvider: GoogleIdTokenProvider,
+    private val firestore: FirebaseFirestore = Firebase.firestore,
 ) : AuthRepository {
 
     override val session: Flow<AppUser?> =
@@ -32,6 +36,15 @@ class FirebaseAuthRepository(
 
     override suspend fun signOut() {
         auth.signOut()
+    }
+
+    override suspend fun getUserProfile(uid: String): User? = runCatching {
+        val snapshot = firestore.collection(USERS_COLLECTION).document(uid).get()
+        if (!snapshot.exists) null else snapshot.data<User>()
+    }.getOrNull()
+
+    companion object {
+        const val USERS_COLLECTION = "users"
     }
 
     private fun FirebaseUser.toAppUser() = AppUser(
