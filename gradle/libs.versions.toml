@@ -15,6 +15,7 @@ firebase-gitlive = "2.5.0"
 # Kotlinx support libraries
 kotlinx-coroutines = "1.10.2"
 kotlinx-serialization = "1.8.1"
+kotlinx-datetime = "0.6.2"
 
 [libraries]
 # --- Ktor: shared HTTP client (engines are declared per platform source set) ---
@@ -26,6 +27,7 @@ ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "kto
 ktor-serialization-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 
 # --- Voyager: Compose Multiplatform navigation ---
 voyager-navigator = { module = "cafe.adriel.voyager:voyager-navigator", version.ref = "voyager" }
