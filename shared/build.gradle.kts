@@ -56,6 +56,7 @@ kotlin {
             implementation(libs.ktor.serialization.json)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.kotlinx.datetime)
 
             // Firebase (GitLive Kotlin SDK, callable from commonMain)
             implementation(libs.gitlive.firebase.app)
