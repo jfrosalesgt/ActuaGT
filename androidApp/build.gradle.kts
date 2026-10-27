@@ -46,5 +46,6 @@ dependencies {
     implementation(project(":shared"))
     implementation(libs.androidx.activity.compose)
     // Firebase Android BoM: resolves versions for transitive Firebase artifacts
-    implementation(platform(libs.firebase.bom))
+    // NOTE: string notation required, platform(CatalogAccessor) is an error in Kotlin 2.3 (KT-58759).
+    implementation(platform("com.google.firebase:firebase-bom:${libs.versions.firebase.bom.get()}"))
 }
