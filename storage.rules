@@ -1,0 +1,22 @@
+// ActuaGT Storage rules: report and ratification photos are JPEG evidence
+// uploaded by signed-in users; official-request credentials stay private.
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    match /report_photos/{reportId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType == 'image/jpeg';
+    }
+
+    match /official_requests/{userId}/{fileName} {
+      allow read: if false;
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType == 'image/jpeg';
+    }
+  }
+}
