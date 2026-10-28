@@ -81,9 +81,13 @@ service cloud.firestore {
     }
 
     // Official requests: the applicant creates and reads their own pending
-    // request; approval is done by an admin outside the client.
+    // request; admins read the whole queue to approve from the app.
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
     match /official_requests/{userId} {
-      allow read: if isSelf(userId);
+      allow read: if isSelf(userId) || isAdmin();
       allow create: if isSelf(userId)
         && request.resource.data.uid == userId
         && request.resource.data.status == 'pending';

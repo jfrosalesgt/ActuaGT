@@ -2,6 +2,7 @@
 // Convention: code and comments in English.
 
 import { initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import { defineString } from "firebase-functions/params";
@@ -21,7 +22,13 @@ import {
   buildTranscriptionMessages,
   parseCleanedTranscription,
 } from "./transcription";
-import { canRespond, isProofAccepted } from "./official";
+import {
+  canActOnZone,
+  canRespond,
+  isAdminClaim,
+  isProofAccepted,
+  OfficialProfile,
+} from "./official";
 import {
   notifyTopic,
   notifyUser,
@@ -299,6 +306,72 @@ export const enhanceReportText = onCall(
   }
 );
 
+// Role administration, admin-only: approving an official request writes the
+// OFFICIAL profile and fixes the matching custom claims; rejecting only
+// marks the request. Client roles stay immutable in the security rules.
+export const setOfficialRole = onCall(
+  { maxInstances: 10 },
+  async (request) => {
+    if (!isAdminClaim(request.auth?.token)) {
+      throw new HttpsError("permission-denied", "Only admins can manage roles.");
+    }
+    const input = (request.data ?? {}) as {
+      uid?: unknown;
+      zone?: unknown;
+      institution?: unknown;
+      approved?: unknown;
+      reason?: unknown;
+    };
+    if (typeof input.uid !== "string" || input.uid.length === 0) {
+      throw new HttpsError("invalid-argument", "A user id is required.");
+    }
+    if (typeof input.approved !== "boolean") {
+      throw new HttpsError("invalid-argument", "An approval decision is required.");
+    }
+
+    const db = getFirestore();
+    const requestRef = db.collection("official_requests").doc(input.uid);
+    const stored = (await requestRef.get()).data() as
+      | { status?: string }
+      | undefined;
+    if (!stored || stored.status !== "pending") {
+      throw new HttpsError("failed-precondition", "There is no pending request for this user.");
+    }
+
+    if (!input.approved) {
+      await requestRef.update({
+        status: "rejected",
+        reviewReason: typeof input.reason === "string" ? input.reason.trim() : "",
+        reviewedAt: Date.now(),
+        reviewedBy: request.auth?.uid ?? null,
+      });
+      logger.info(`Official request for ${input.uid} rejected.`);
+      return { ok: true };
+    }
+
+    const zone = typeof input.zone === "string" ? input.zone.trim() : "";
+    const institution = typeof input.institution === "string" ? input.institution.trim() : "";
+    if (!zone || !institution) {
+      throw new HttpsError("invalid-argument", "Approving requires zone and institution.");
+    }
+    const batch = db.batch();
+    batch.update(db.collection("users").doc(input.uid), {
+      role: "OFFICIAL",
+      zone,
+      institution,
+    });
+    batch.update(requestRef, {
+      status: "approved",
+      reviewedAt: Date.now(),
+      reviewedBy: request.auth?.uid ?? null,
+    });
+    await getAuth().setCustomUserClaims(input.uid, { official: true, zone });
+    await batch.commit();
+    logger.info(`User ${input.uid} approved as official for zone ${zone}.`);
+    return { ok: true };
+  }
+);
+
 // Official action verified server-side: only an OFFICIAL profile whose zone
 // matches the report can write to its public timeline or move its status.
 // Resolution requires the finished-work proof photo URL (automated visual
@@ -349,12 +422,10 @@ export const officialRespond = onCall(
     }
 
     const db = getFirestore();
+    const isAdmin = isAdminClaim(request.auth?.token);
     const profile = (await db.collection("users").doc(uid).get()).data() as
-      | { role?: string; zone?: string }
+      | OfficialProfile
       | undefined;
-    if (profile?.role !== "OFFICIAL" || !profile.zone) {
-      throw new HttpsError("permission-denied", "Only approved officials can respond.");
-    }
     const parentRef = db.collection("incidents").doc(input.reportId);
     const parent = await parentRef.get();
     if (!parent.exists) {
@@ -373,8 +444,11 @@ export const officialRespond = onCall(
           status?: string;
         }
       | undefined;
-    if (!report?.zone || report.zone !== profile.zone) {
+    if (!canActOnZone(profile, report?.zone, isAdmin)) {
       throw new HttpsError("permission-denied", "The report is outside your zone.");
+    }
+    if (!report) {
+      throw new HttpsError("not-found", "The report does not exist.");
     }
     if (!canRespond(report.status, targetStatus)) {
       throw new HttpsError("failed-precondition", "That status change is not allowed now.");

@@ -1,6 +1,32 @@
 // Pure official-response policy. Kept side-effect free for unit testing.
 export const RESPONDABLE_STATUSES = ["published", "in_progress", "resolved"];
 
+export interface OfficialProfile {
+  role?: string;
+  zone?: string;
+}
+
+// Writes come from the callable, which resolves isAdmin from the verified
+// Auth custom claims, never from client input.
+export function isAdminClaim(token: unknown): boolean {
+  return (
+    typeof token === "object" &&
+    token !== null &&
+    (token as Record<string, unknown>).admin === true
+  );
+}
+
+// Officials act within their own zone; admins act anywhere.
+export function canActOnZone(
+  profile: OfficialProfile | undefined,
+  zone: string | undefined,
+  isAdmin: boolean
+): boolean {
+  if (!profile || !zone) return false;
+  if (isAdmin) return true;
+  return profile.role === "OFFICIAL" && profile.zone === zone;
+}
+
 // The proof photo is accepted only when the triage engine approves it under
 // the report's own official category.
 export function isProofAccepted(

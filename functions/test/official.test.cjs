@@ -1,7 +1,7 @@
 // Maintained test for the official-response policy.
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { canRespond, isProofAccepted } = require("../lib/official.js");
+const { canActOnZone, canRespond, isAdminClaim, isProofAccepted } = require("../lib/official.js");
 
 test("allows taking a published case", () => {
   assert.equal(canRespond("published", "in_progress"), true);
@@ -50,6 +50,23 @@ test("rejects proof with another category, rejection, or missing data", () => {
     isProofAccepted({ status: "APPROVED", category: "VIALIDAD" }, undefined),
     false
   );
+});
+
+test("officials act within their zone, admin anywhere", () => {
+  assert.equal(canActOnZone({ role: "OFFICIAL", zone: "a" }, "a", false), true);
+  assert.equal(canActOnZone({ role: "OFFICIAL", zone: "a" }, "b", false), false);
+  assert.equal(canActOnZone({ role: "CITIZEN", zone: "b" }, "b", true), true);
+  assert.equal(canActOnZone({ role: "CITIZEN" }, "b", false), false);
+  assert.equal(canActOnZone(undefined, "b", true), false);
+  assert.equal(canActOnZone({ role: "OFFICIAL", zone: "a" }, undefined, true), false);
+});
+
+test("admin is resolved from verified Auth claims only", () => {
+  assert.equal(isAdminClaim({ admin: true }), true);
+  assert.equal(isAdminClaim({ admin: false }), false);
+  assert.equal(isAdminClaim({}), false);
+  assert.equal(isAdminClaim(null), false);
+  assert.equal(isAdminClaim("admin"), false);
 });
 
 test("needs_review is distinct from approved and from missing state", () => {
