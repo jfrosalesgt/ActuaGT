@@ -31,14 +31,21 @@ fun App(initialReportId: String? = null) {
             val sessionModel = remember { AuthGraph.sessionScreenModel() }
             val session by sessionModel.sessionState.collectAsState()
             LaunchedEffect(initialReportId, session) {
-                if (initialReportId.isNullOrBlank()) return@LaunchedEffect
+                val target = initialReportId
+                if (target.isNullOrBlank()) return@LaunchedEffect
+                val visible = navigator.lastItem
+                // The same push tapped twice must not stack the detail twice.
+                if (visible is ReportDetailScreen && visible.reportId == target) {
+                    DeepLinkRequest.pendingReportId = null
+                    return@LaunchedEffect
+                }
                 if (session is SessionState.SignedIn &&
-                    MainTab.fromScreen(navigator.lastItem) != null &&
-                    DeepLinkRequest.markPushed(initialReportId)
+                    MainTab.fromScreen(visible) != null &&
+                    DeepLinkRequest.markPushed(target)
                 ) {
-                    navigator.push(ReportDetailScreen(initialReportId))
+                    navigator.push(ReportDetailScreen(target))
                 } else {
-                    DeepLinkRequest.pendingReportId = initialReportId
+                    DeepLinkRequest.pendingReportId = target
                 }
             }
 
