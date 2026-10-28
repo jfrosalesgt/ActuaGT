@@ -23,6 +23,7 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.actuagt.shared.auth.AuthGraph
 import com.actuagt.shared.auth.SessionState
+import com.actuagt.shared.ui.navigation.DeepLinkRequest
 
 // Login entry point: injects the session model, observes it, and redirects
 // to the feed as soon as a session exists (restored or fresh).
@@ -38,6 +39,10 @@ object LoginScreen : Screen {
         LaunchedEffect(session) {
             if (session is SessionState.SignedIn) {
                 navigator.replaceAll(FeedScreen)
+                DeepLinkRequest.pendingReportId?.let {
+                    DeepLinkRequest.pendingReportId = null
+                    navigator.push(ReportDetailScreen(it))
+                }
             }
         }
 

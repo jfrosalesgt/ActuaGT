@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.model.rememberScreenModel
@@ -48,9 +50,35 @@ object FeedScreen : Screen {
         val options = listOf("Mapa", "Lista")
 
         val feed by feedModel.feed.collectAsState()
+        val queue by feedModel.ratificationQueue.collectAsState()
         val selected by feedModel.selected.collectAsState()
+        val listening by feedModel.listening.collectAsState()
+        val confirmText by feedModel.confirmText.collectAsState()
         val session by sessionModel.sessionState.collectAsState()
         val userUid = (session as? SessionState.SignedIn)?.user?.uid.orEmpty()
+
+        confirmText?.let { cleaned ->
+            AlertDialog(
+                onDismissRequest = feedModel::dismissDictation,
+                title = { Text(text = "Confirmá el texto") },
+                text = { Text(text = cleaned) },
+                confirmButton = {
+                    TextButton(onClick = feedModel::confirmDictation) {
+                        Text(text = "Usar este texto")
+                    }
+                },
+                dismissButton = {
+                    Row {
+                        TextButton(onClick = feedModel::dismissDictation) {
+                            Text(text = "Descartar")
+                        }
+                        TextButton(onClick = feedModel::editDictation) {
+                            Text(text = "Editar")
+                        }
+                    }
+                },
+            )
+        }
 
         Column(
             modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -75,6 +103,21 @@ object FeedScreen : Screen {
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
+            if (queue.isNotEmpty()) {
+                Text(
+                    text = "Validar en tu zona (${queue.size})",
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                queue.forEach { report ->
+                    ReportRow(
+                        report = report,
+                        onClick = { feedModel.select(report) },
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            }
             if (showMap) {
                 Text(text = "Vista de mapa (pendiente)")
             } else if (feed.isEmpty()) {
@@ -95,6 +138,7 @@ object FeedScreen : Screen {
                 RatifyPanel(
                     report = report,
                     userUid = userUid,
+                    listening = listening,
                     model = feedModel,
                 )
             }
@@ -118,6 +162,7 @@ private fun ReportRow(report: IncidentReport, onClick: () -> Unit) {
 private fun RatifyPanel(
     report: IncidentReport,
     userUid: String,
+    listening: Boolean,
     model: FeedScreenModel,
 ) {
     val description by model.description.collectAsState()
@@ -137,10 +182,24 @@ private fun RatifyPanel(
                     Text(text = "Cerrar")
                 }
             }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "¿Qué viste?",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedButton(
+                    onClick = { model.dictate() },
+                    enabled = !sending && !listening,
+                ) {
+                    Text(text = if (listening) "Escuchando…" else "Dictar por voz")
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
             OutlinedTextField(
                 value = description,
                 onValueChange = { model.onDescriptionChange(it) },
-                label = { Text(text = "¿Qué viste? (opcional)") },
+                label = { Text(text = "¿Qué viste?") },
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(modifier = Modifier.height(8.dp))

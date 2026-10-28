@@ -1,7 +1,8 @@
 package com.actuagt.shared.media
 
-actual class CameraCapture() {
+actual class CameraCapture actual constructor() {
     actual suspend fun takePhoto(): CapturedPhoto? {
-        TODO("Wire with androidApp: launch the camera with the TakePicture contract, then ExifMetadataExtractor.extract(bytes).")
+        val bytes = AndroidCamera.capture() ?: return null
+        return CapturedPhoto(bytes, ExifMetadataExtractor.extract(bytes))
     }
 }

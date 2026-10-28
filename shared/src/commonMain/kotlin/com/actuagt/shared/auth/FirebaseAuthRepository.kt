@@ -43,6 +43,19 @@ class FirebaseAuthRepository(
         if (!snapshot.exists) null else snapshot.data<User>()
     }.getOrNull()
 
+    override suspend fun ensureUserProfile(user: AppUser): Result<User> = runCatching {
+        getUserProfile(user.uid)?.let { return@runCatching it }
+        val profile = User(
+            uid = user.uid,
+            displayName = user.displayName,
+            email = user.email,
+            photoUrl = user.photoUrl,
+            isAnonymous = user.isAnonymous,
+        )
+        firestore.collection(USERS_COLLECTION).document(user.uid).set(profile)
+        profile
+    }
+
     companion object {
         const val USERS_COLLECTION = "users"
     }

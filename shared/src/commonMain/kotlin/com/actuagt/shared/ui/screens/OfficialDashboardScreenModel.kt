@@ -8,6 +8,7 @@ import com.actuagt.shared.data.DataGraph
 import com.actuagt.shared.data.ReportRepository
 import com.actuagt.shared.media.CameraCapture
 import com.actuagt.shared.model.IncidentReport
+import com.actuagt.shared.model.ReportUpdate
 import com.actuagt.shared.model.UserRole
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -46,8 +47,31 @@ class OfficialDashboardScreenModel(
         zoneReports
     }.stateIn(screenModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val reviewQueue: StateFlow<List<IncidentReport>> = access.flatMapLatest { access ->
+        val queue: Flow<List<IncidentReport>> = when (access) {
+            is Access.Granted -> reportRepository.observeProofReviews(access.zone)
+            else -> flowOf(emptyList())
+        }
+        queue
+    }.stateIn(screenModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     private val _resolvingId = MutableStateFlow<String?>(null)
     val resolvingId: StateFlow<String?> = _resolvingId
+
+    private val _expandedId = MutableStateFlow<String?>(null)
+    val expandedId: StateFlow<String?> = _expandedId
+
+    private val _reply = MutableStateFlow("")
+    val reply: StateFlow<String> = _reply
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val updates: StateFlow<List<ReportUpdate>> = expandedId.flatMapLatest { reportId ->
+        val stream: Flow<List<ReportUpdate>> = reportId?.let {
+            reportRepository.observeReportUpdates(it)
+        } ?: flowOf(emptyList())
+        stream
+    }.stateIn(screenModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message
@@ -68,18 +92,109 @@ class OfficialDashboardScreenModel(
         _message.value = null
     }
 
+    fun toggleExpanded(report: IncidentReport) {
+        _expandedId.value = if (_expandedId.value == report.id) null else report.id
+        _reply.value = ""
+        _message.value = null
+    }
+
+    fun onReplyChange(value: String) {
+        _reply.value = value
+        _message.value = null
+    }
+
+    // Takes a published case into management.
+    fun takeCase(report: IncidentReport) {
+        actOn(report, status = "in_progress", withPhoto = false)
+    }
+
+    fun sendReply(report: IncidentReport) {
+        if (_reply.value.isBlank()) {
+            _message.value = "Escribí una respuesta antes de enviarla."
+            return
+        }
+        actOn(report, status = null, withPhoto = false)
+    }
+
     // Captures the "finished work" proof photo and marks the report resolved.
+    // The server verifies the OFFICIAL profile and zone before accepting it.
     fun resolveWithCamera(report: IncidentReport) {
+        actOn(report, status = "resolved", withPhoto = true)
+    }
+
+    fun approveProof(report: IncidentReport) {
         if (_resolvingId.value != null) return
         screenModelScope.launch {
-            val photo = CameraCapture().takePhoto() ?: return@launch
             _resolvingId.value = report.id
             _message.value = null
-            val result = reportRepository.resolveReport(report.id, photo)
+            val result = reportRepository.officialRespond(
+                reportId = report.id,
+                message = null,
+                status = null,
+                proofPhoto = null,
+                manualReview = "approved",
+                reviewReason = null,
+            )
             _resolvingId.value = null
             _message.value = result.fold(
-                onSuccess = { "Reporte marcado como resuelto." },
-                onFailure = { "No se pudo marcar como resuelto. Inténtalo de nuevo." },
+                onSuccess = { "Prueba aprobada manualmente." },
+                onFailure = { "No se pudo aprobar la prueba. Inténtalo de nuevo." },
+            )
+        }
+    }
+
+    fun rejectProof(report: IncidentReport) {
+        if (_resolvingId.value != null) return
+        if (_reply.value.isBlank()) {
+            _message.value = "Escribí el motivo del rechazo antes de rechazar la prueba."
+            return
+        }
+        screenModelScope.launch {
+            _resolvingId.value = report.id
+            _message.value = null
+            val result = reportRepository.officialRespond(
+                reportId = report.id,
+                message = null,
+                status = null,
+                proofPhoto = null,
+                manualReview = "rejected",
+                reviewReason = _reply.value,
+            )
+            _resolvingId.value = null
+            _message.value = result.fold(
+                onSuccess = {
+                    _reply.value = ""
+                    "Prueba rechazada; el caso vuelve a estar en gestión."
+                },
+                onFailure = { "No se pudo rechazar la prueba. Inténtalo de nuevo." },
+            )
+        }
+    }
+
+    private fun actOn(report: IncidentReport, status: String?, withPhoto: Boolean) {
+        if (_resolvingId.value != null) return
+        screenModelScope.launch {
+            val photo = if (withPhoto) {
+                CameraCapture().takePhoto() ?: return@launch.also {
+                    _message.value = "No se capturó la foto de obra terminada."
+                }
+            } else null
+            val replyText = _reply.value.ifBlank { null }
+            _resolvingId.value = report.id
+            _message.value = null
+            val result = reportRepository.officialRespond(
+                reportId = report.id,
+                message = replyText,
+                status = status,
+                proofPhoto = photo,
+            )
+            _resolvingId.value = null
+            _message.value = result.fold(
+                onSuccess = {
+                    _reply.value = ""
+                    "Respuesta registrada."
+                },
+                onFailure = { "No se pudo registrar. Revisá tu acceso de funcionario e inténtalo de nuevo." },
             )
         }
     }

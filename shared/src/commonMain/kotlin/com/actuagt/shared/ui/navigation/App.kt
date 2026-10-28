@@ -6,18 +6,41 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import cafe.adriel.voyager.navigator.CurrentScreen
 import cafe.adriel.voyager.navigator.Navigator
+import com.actuagt.shared.auth.AuthGraph
+import com.actuagt.shared.auth.SessionState
 import com.actuagt.shared.ui.components.BottomNavigationBar
 import com.actuagt.shared.ui.screens.LoginScreen
+import com.actuagt.shared.ui.screens.ReportDetailScreen
 
 // Application root: hosts the Voyager router inside the main scaffold.
 // The bottom bar is only visible on the main tab destinations.
+// initialReportId opens one report directly (push-notification deep link):
+// immediately when a main tab is visible, otherwise LoginScreen consumes it
+// after signing in.
 @Composable
-fun App() {
+fun App(initialReportId: String? = null) {
     MaterialTheme {
         Navigator(screen = LoginScreen) { navigator ->
             val currentTab = MainTab.fromScreen(navigator.lastItem)
+            val sessionModel = remember { AuthGraph.sessionScreenModel() }
+            val session by sessionModel.sessionState.collectAsState()
+            LaunchedEffect(initialReportId, session) {
+                if (initialReportId.isNullOrBlank()) return@LaunchedEffect
+                if (session is SessionState.SignedIn &&
+                    MainTab.fromScreen(navigator.lastItem) != null &&
+                    DeepLinkRequest.markPushed(initialReportId)
+                ) {
+                    navigator.push(ReportDetailScreen(initialReportId))
+                } else {
+                    DeepLinkRequest.pendingReportId = initialReportId
+                }
+            }
 
             Scaffold(
                 bottomBar = {

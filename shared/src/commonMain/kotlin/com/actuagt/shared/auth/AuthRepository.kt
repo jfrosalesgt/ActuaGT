@@ -24,4 +24,8 @@ interface AuthRepository {
     // Reads the app profile (role, zone) from the `users` collection.
     // Returns null when the profile does not exist yet.
     suspend fun getUserProfile(uid: String): User?
+
+    // Creates the default citizen profile on first sign-in. Never upgrades
+    // an existing profile: official access is granted only by an admin.
+    suspend fun ensureUserProfile(user: AppUser): Result<User>
 }

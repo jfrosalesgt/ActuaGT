@@ -2,9 +2,11 @@ package com.actuagt.shared.auth
 
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
+import com.actuagt.shared.push.PushRegistrar
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -48,7 +50,19 @@ class SessionScreenModel(
         screenModelScope.launch {
             _signingIn.value = true
             _errorMessage.value = null
-            block().onFailure {
+            val result = block()
+            if (result.isSuccess) {
+                val user = repository.session.first()
+                val profile = user?.let { repository.ensureUserProfile(it).getOrNull() }
+                if (user == null || profile == null) {
+                    _errorMessage.value = "Sesión iniciada, pero no se pudo crear tu perfil. Inténtalo de nuevo."
+                } else {
+                    // Best effort: push registration never blocks sign-in.
+                    runCatching {
+                        PushRegistrar().register(user.uid, profile.zone, profile.role.name)
+                    }
+                }
+            } else {
                 _errorMessage.value = "No se pudo iniciar sesión. Inténtalo de nuevo."
             }
             _signingIn.value = false

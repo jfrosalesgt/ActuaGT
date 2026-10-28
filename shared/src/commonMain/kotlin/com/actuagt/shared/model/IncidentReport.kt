@@ -4,13 +4,21 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 // Lifecycle of a citizen report. Serial names match the Firestore values.
+// Nothing is public before PUBLISHED: moderated reports wait in
+// IN_RATIFICATION, visible only to registered citizens of the same zone.
 @Serializable
 enum class IncidentStatus {
     @SerialName("pending")
     PENDING,
 
-    @SerialName("verified")
-    VERIFIED,
+    @SerialName("in_ratification")
+    IN_RATIFICATION,
+
+    @SerialName("published")
+    PUBLISHED,
+
+    @SerialName("in_progress")
+    IN_PROGRESS,
 
     @SerialName("rejected")
     REJECTED,
@@ -29,6 +37,17 @@ enum class ReportPriority {
     HIGH,
 }
 
+// Resolution-proof review state. Only set on reports with a finished-work
+// photo: APPROVED clears, NEEDS_REVIEW sends it to the official queue.
+@Serializable
+enum class ProofReview {
+    @SerialName("approved")
+    APPROVED,
+
+    @SerialName("needs_review")
+    NEEDS_REVIEW,
+}
+
 // Citizen infrastructure report stored in Firestore.
 @Serializable
 data class IncidentReport(
@@ -44,6 +63,8 @@ data class IncidentReport(
     val zone: String = "",
     val ratificationsCount: Int = 0,
     val resolvedPhotoUrl: String? = null,
+    val proofReview: ProofReview? = null,
+    val proofReviewReason: String? = null,
     val reportedByUid: String = "",
     val createdAtEpochMillis: Long = 0L,
 )
