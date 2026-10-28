@@ -48,15 +48,21 @@ firebase-auth = { module = "com.google.firebase:firebase-auth", version = "25.0.
 firebase-common = { module = "com.google.firebase:firebase-common", version = "23.0.0" }
 firebase-firestore = { module = "com.google.firebase:firebase-firestore", version = "27.1.0" }
 firebase-storage = { module = "com.google.firebase:firebase-storage", version = "23.0.0" }
+# Pinned explicitly: GitLive firebase-functions-android declares this transitive
+# dependency without a version and Gradle cannot resolve it (KT-58759 bans platform()).
+firebase-functions = { module = "com.google.firebase:firebase-functions", version = "23.0.0" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging", version = "26.0.1" }
 
 # --- Firebase via GitLive Kotlin SDK (usable from commonMain) ---
 gitlive-firebase-app = { module = "dev.gitlive:firebase-app", version.ref = "firebase-gitlive" }
 gitlive-firebase-auth = { module = "dev.gitlive:firebase-auth", version.ref = "firebase-gitlive" }
 gitlive-firebase-firestore = { module = "dev.gitlive:firebase-firestore", version.ref = "firebase-gitlive" }
 gitlive-firebase-storage = { module = "dev.gitlive:firebase-storage", version.ref = "firebase-gitlive" }
+gitlive-firebase-functions = { module = "dev.gitlive:firebase-functions", version.ref = "firebase-gitlive" }
 
 # --- Android app shell ---
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
+androidx-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "androidx-activity" }
 
 # --- Compose Multiplatform (pinned to the Compose plugin version) ---
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose" }

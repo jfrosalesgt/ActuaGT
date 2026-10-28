@@ -61,6 +61,7 @@ kotlin {
             implementation(libs.kotlinx.datetime)
 
             // Firebase (GitLive Kotlin SDK, callable from commonMain)
+            implementation(libs.gitlive.firebase.functions)
             implementation(libs.gitlive.firebase.app)
             implementation(libs.gitlive.firebase.auth)
             implementation(libs.gitlive.firebase.firestore)
@@ -68,6 +69,11 @@ kotlin {
         }
 
         androidMain.dependencies {
+            // Pins the version GitLive firebase-functions-android omits.
+            implementation(libs.firebase.functions)
+            implementation(libs.firebase.messaging)
+            // ActivityResult (TakePicture) for the real camera wiring.
+            implementation(libs.androidx.activity.ktx)
             // Pinned Firebase Android SDK (versions taken from firebase-bom 35.1.0).
             implementation(libs.firebase.auth)
             implementation(libs.firebase.common)
