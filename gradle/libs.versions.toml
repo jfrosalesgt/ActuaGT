@@ -63,6 +63,8 @@ gitlive-firebase-functions = { module = "dev.gitlive:firebase-functions", versio
 # --- Android app shell ---
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
 androidx-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "androidx-activity" }
+maps-compose = { module = "com.google.maps.android:maps-compose", version = "6.6.0" }
+maps-compose-utils = { module = "com.google.maps.android:maps-compose-utils", version = "6.6.0" }
 
 # --- Compose Multiplatform (pinned to the Compose plugin version) ---
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose" }

@@ -119,7 +119,11 @@ object FeedScreen : Screen {
                 Spacer(modifier = Modifier.height(4.dp))
             }
             if (showMap) {
-                Text(text = "Vista de mapa (pendiente)")
+                ReportMap(
+                    reports = queue + feed,
+                    onSelect = { feedModel.select(it) },
+                    modifier = Modifier.fillMaxSize().weight(1f),
+                )
             } else if (feed.isEmpty()) {
                 Text(text = "Aún no hay reportes verificados.")
             } else {

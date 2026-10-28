@@ -72,6 +72,8 @@ kotlin {
             // Pins the version GitLive firebase-functions-android omits.
             implementation(libs.firebase.functions)
             implementation(libs.firebase.messaging)
+            implementation(libs.maps.compose)
+            implementation(libs.maps.compose.utils)
             // ActivityResult (TakePicture) for the real camera wiring.
             implementation(libs.androidx.activity.ktx)
             // Pinned Firebase Android SDK (versions taken from firebase-bom 35.1.0).
