@@ -1,45 +1,52 @@
-// Maintained test for the moderation verdict contract (node:test, no frameworks).
+// Maintained test for the Iteration 1 triage contract (node:test, no frameworks).
 // Run with: npm test (builds first, then exercises the compiled output).
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  TRIAGE_CATEGORIES,
   buildChatMessages,
   buildSystemPrompt,
-  parseVerdict,
+  parseTriageResponse,
 } = require("../lib/moderation.js");
+const fixtures = require("./fixtures/triage-responses.json");
 
-test("parseVerdict accepts a clean APROBADO", () => {
-  assert.deepEqual(parseVerdict("APROBADO"), { decision: "APROBADO", reason: "" });
-});
-
-test("parseVerdict tolerates casing and trailing text", () => {
-  assert.deepEqual(parseVerdict("aprobado.").decision, "APROBADO");
-});
-
-test("parseVerdict extracts the Spanish rejection motive", () => {
-  assert.deepEqual(parseVerdict("RECHAZADO: la imagen es un meme"), {
-    decision: "RECHAZADO",
-    reason: "la imagen es un meme",
+for (const fixture of fixtures) {
+  test(`triage fixture: ${fixture.name}`, () => {
+    const parsed = parseTriageResponse(fixture.raw);
+    if (fixture.expected === null) {
+      assert.equal(parsed, null);
+      return;
+    }
+    assert.equal(parsed.status, fixture.expected.status);
+    assert.equal(parsed.category, fixture.expected.category);
+    assert.ok(parsed.reason.split(/\s+/).filter(Boolean).length <= 20);
+    if (fixture.expected.suggestedTitle) {
+      assert.equal(parsed.suggestedTitle, fixture.expected.suggestedTitle);
+      const words = parsed.suggestedTitle.split(/\s+/).filter(Boolean);
+      assert.ok(words.length >= 4 && words.length <= 6);
+    }
   });
+}
+
+test("triage categories match the civic contract", () => {
+  assert.deepEqual(TRIAGE_CATEGORIES, [
+    "VIALIDAD",
+    "AGUA_Y_DRENAJES",
+    "ALUMBRADO",
+    "DESECHOS_Y_AMBIENTE",
+    "ESPACIOS_PUBLICOS",
+    "OTROS",
+  ]);
 });
 
-test("parseVerdict defaults an empty rejection motive", () => {
-  const verdict = parseVerdict("RECHAZADO");
-  assert.equal(verdict.decision, "RECHAZADO");
-  assert.match(verdict.reason, /\S/);
-});
-
-test("parseVerdict returns null for unusable answers", () => {
-  assert.equal(parseVerdict(""), null);
-  assert.equal(parseVerdict(null), null);
-  assert.equal(parseVerdict("Quizás, hay que revisarlo"), null);
-});
-
-test("system prompt demands exactly one verdict line", () => {
+test("system prompt encodes every acceptance rule", () => {
   const prompt = buildSystemPrompt();
-  assert.match(prompt, /APROBADO/);
-  assert.match(prompt, /RECHAZADO/);
-  assert.match(prompt, /EXACTLY one line/);
+  assert.match(prompt, /infraestructura/);
+  assert.match(prompt, /captura de pantalla/);
+  assert.match(prompt, /nombres propios/);
+  assert.match(prompt, /coherencia semántica/);
+  assert.match(prompt, /ÚNICAMENTE con un objeto JSON/);
+  for (const category of TRIAGE_CATEGORIES) assert.match(prompt, new RegExp(category));
 });
 
 test("chat messages carry text plus every photo URL", () => {

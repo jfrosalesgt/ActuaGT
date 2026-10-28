@@ -1,0 +1,72 @@
+[
+  {
+    "name": "approved pothole with coherent text and image",
+    "raw": "{\"status\":\"APPROVED\",\"category\":\"VIALIDAD\",\"reason\":\"Foto real de bache en calle exterior.\",\"suggested_title\":\"Bache profundo en calle principal\"}",
+    "expected": { "status": "APPROVED", "category": "VIALIDAD", "suggestedTitle": "Bache profundo en calle principal" }
+  },
+  {
+    "name": "rejected screenshot",
+    "raw": "{\"status\":\"REJECTED\",\"category\":\"REJECTED\",\"reason\":\"La imagen es una captura de pantalla.\"}",
+    "expected": { "status": "REJECTED", "category": "REJECTED" }
+  },
+  {
+    "name": "rejected photo of another screen",
+    "raw": "{\"status\":\"REJECTED\",\"category\":\"REJECTED\",\"reason\":\"La imagen muestra una foto de otra pantalla.\"}",
+    "expected": { "status": "REJECTED", "category": "REJECTED" }
+  },
+  {
+    "name": "rejected digital art",
+    "raw": "{\"status\":\"REJECTED\",\"category\":\"REJECTED\",\"reason\":\"La imagen es arte digital, no una fotografía.\"}",
+    "expected": { "status": "REJECTED", "category": "REJECTED" }
+  },
+  {
+    "name": "rejected proper name and corruption accusation",
+    "raw": "{\"status\":\"REJECTED\",\"category\":\"REJECTED\",\"reason\":\"El texto incluye nombre propio y acusación personal.\"}",
+    "expected": { "status": "REJECTED", "category": "REJECTED" }
+  },
+  {
+    "name": "rejected insult in text",
+    "raw": "{\"status\":\"REJECTED\",\"category\":\"REJECTED\",\"reason\":\"El texto contiene insultos hacia personas.\"}",
+    "expected": { "status": "REJECTED", "category": "REJECTED" }
+  },
+  {
+    "name": "rejected semantic incoherence between text and image",
+    "raw": "{\"status\":\"REJECTED\",\"category\":\"REJECTED\",\"reason\":\"El texto describe fuga y la imagen muestra alumbrado.\"}",
+    "expected": { "status": "REJECTED", "category": "REJECTED" }
+  },
+  {
+    "name": "approved wrapped in markdown fences is still parsed",
+    "raw": "```json\n{\"status\":\"APPROVED\",\"category\":\"AGUA_Y_DRENAJES\",\"reason\":\"Foto real de fuga de agua exterior.\",\"suggested_title\":\"Fuga de agua en acera\"}\n```",
+    "expected": { "status": "APPROVED", "category": "AGUA_Y_DRENAJES", "suggestedTitle": "Fuga de agua en acera" }
+  },
+  {
+    "name": "invalid category is unusable",
+    "raw": "{\"status\":\"APPROVED\",\"category\":\"BASURA\",\"reason\":\"Foto real de un problema.\",\"suggested_title\":\"Problema visible en la calle\"}",
+    "expected": null
+  },
+  {
+    "name": "approved with category REJECTED is unusable",
+    "raw": "{\"status\":\"APPROVED\",\"category\":\"REJECTED\",\"reason\":\"Contradicción de formato.\",\"suggested_title\":\"Problema visible en la calle\"}",
+    "expected": null
+  },
+  {
+    "name": "approved with two-word title is unusable",
+    "raw": "{\"status\":\"APPROVED\",\"category\":\"ALUMBRADO\",\"reason\":\"Foto real de poste dañado.\",\"suggested_title\":\"Poste dañado\"}",
+    "expected": null
+  },
+  {
+    "name": "reason over twenty words is unusable",
+    "raw": "{\"status\":\"REJECTED\",\"category\":\"REJECTED\",\"reason\":\"uno dos tres cuatro cinco seis siete ocho nueve diez once doce trece catorce quince dieciséis diecisiete dieciocho diecinueve veinte veintiuno\"}",
+    "expected": null
+  },
+  {
+    "name": "plain prose is unusable",
+    "raw": "APROBADO",
+    "expected": null
+  },
+  {
+    "name": "empty answer is unusable",
+    "raw": "",
+    "expected": null
+  }
+]

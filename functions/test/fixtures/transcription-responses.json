@@ -1,0 +1,22 @@
+[
+  {
+    "name": "normative example cleaned by the model",
+    "raw": "Hoyo enorme en la 5ta calle",
+    "expected": { "kind": "clean", "text": "Hoyo enorme en la 5ta calle" }
+  },
+  {
+    "name": "security topic returns the exact alert token",
+    "raw": "ALERTA_DE_SEGURIDAD_NO_APTA_PARA_INFRAESTRUCTURA",
+    "expected": { "kind": "security_alert" }
+  },
+  {
+    "name": "extra whitespace is collapsed",
+    "raw": "  Fuga   de agua\nfrente al parque  ",
+    "expected": { "kind": "clean", "text": "Fuga de agua frente al parque" }
+  },
+  {
+    "name": "empty answer is unusable",
+    "raw": "   ",
+    "expected": null
+  }
+]
