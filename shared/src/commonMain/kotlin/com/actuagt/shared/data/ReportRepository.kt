@@ -17,6 +17,10 @@ interface ReportRepository {
     // exposes it only to registered citizens of that zone.
     fun observeRatificationQueue(zone: String): Flow<List<IncidentReport>>
 
+    // Admin views across zones (temporary escape hatch until roles exist).
+    fun observeAllPublishedReports(): Flow<List<IncidentReport>>
+    fun observeAllProofReviews(): Flow<List<IncidentReport>>
+
     // Single incident by id, kept in sync from Firestore. Null when missing.
     fun observeReport(reportId: String): Flow<IncidentReport?>
 
@@ -66,13 +70,23 @@ interface ReportRepository {
     ): Result<Unit>
 
     // Citizen application for official access. The credential photo is
-    // optional; approval happens outside the client.
+    // optional; approval happens via setOfficialRole.
     suspend fun submitOfficialRequest(
         request: OfficialRequest,
         credentialPhoto: CapturedPhoto?,
     ): Result<Unit>
 
-    // Uploads the "finished work" proof photo and marks the report resolved.
-    // Returns the proof photo download URL.
-    suspend fun resolveReport(reportId: String, proofPhoto: CapturedPhoto): Result<String>
+    // Pending official-access applications, visible only to admins.
+    fun observeOfficialRequests(): Flow<List<OfficialRequest>>
+
+    // Admin-only: approves (with zone and institution) or rejects an
+    // application. Enforced server-side through verified Auth claims.
+    suspend fun setOfficialRole(
+        uid: String,
+        zone: String?,
+        institution: String?,
+        approved: Boolean,
+        reviewReason: String?,
+    ): Result<Unit>
+
 }

@@ -49,6 +49,8 @@ object OfficialDashboardScreen : Screen {
         val reply by model.reply.collectAsState()
         val updates by model.updates.collectAsState()
         val reviewQueue by model.reviewQueue.collectAsState()
+        val isAdmin by model.isAdmin.collectAsState()
+        val requests by model.requests.collectAsState()
         val message by model.message.collectAsState()
 
         LaunchedEffect(session) {
@@ -73,7 +75,42 @@ object OfficialDashboardScreen : Screen {
                     OfficialRequestForm(requestModel)
                 }
                 is OfficialDashboardScreenModel.Access.Granted -> {
-                    Text(text = "Zona: ${current.zone} • ${reports.size} reportes")
+                    Text(
+                        text = if (current.zone == OfficialDashboardScreenModel.ALL_ZONES) {
+                            "Todas las zonas (admin) • ${reports.size} reportes"
+                        } else {
+                            "Zona: ${current.zone} • ${reports.size} reportes"
+                        }
+                    )
+                    if (isAdmin) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Solicitudes pendientes (${requests.size})",
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        if (requests.isEmpty()) {
+                            Text(
+                                text = "Sin solicitudes pendientes.",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        requests.forEach { request ->
+                            RequestRow(
+                                fullName = request.fullName,
+                                institution = request.institution,
+                                position = request.position,
+                                email = request.institutionalEmail,
+                                zone = request.zone,
+                                reply = reply,
+                                resolving = resolvingId == request.uid,
+                                onReplyChange = model::onReplyChange,
+                                onApprove = { model.approveRequest(request) },
+                                onReject = { model.rejectRequest(request) },
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
                     if (reviewQueue.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
@@ -259,6 +296,59 @@ private fun ProofReviewRow(
                         CircularProgressIndicator()
                     } else {
                         Text(text = "Aprobar prueba")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RequestRow(
+    fullName: String,
+    institution: String,
+    position: String,
+    email: String,
+    zone: String,
+    reply: String,
+    resolving: Boolean,
+    onReplyChange: (String) -> Unit,
+    onApprove: () -> Unit,
+    onReject: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(text = fullName, style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = "$position • $institution • $email • Zona: $zone",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = reply,
+                onValueChange = onReplyChange,
+                label = { Text(text = "Motivo (para rechazar)") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row {
+                OutlinedButton(
+                    onClick = onReject,
+                    enabled = !resolving,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(text = "Rechazar")
+                }
+                Spacer(modifier = Modifier.padding(4.dp))
+                Button(
+                    onClick = onApprove,
+                    enabled = !resolving,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    if (resolving) {
+                        CircularProgressIndicator()
+                    } else {
+                        Text(text = "Aprobar")
                     }
                 }
             }

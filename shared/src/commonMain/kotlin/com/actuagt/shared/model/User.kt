@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 enum class UserRole {
     CITIZEN,
     OFFICIAL,
+    ADMIN,
 }
 
 // Platform-agnostic app user profile, mirrored from Firebase Auth.

@@ -138,6 +138,55 @@ class FirebaseReportRepository(
                 snapshot.documents.map { it.data<IncidentReport>().copy(id = it.id) }
             }
 
+    override fun observeAllPublishedReports(): Flow<List<IncidentReport>> =
+        observeReportsWithStatus(PUBLISHED_STATUS)
+
+    override fun observeAllProofReviews(): Flow<List<IncidentReport>> =
+        observeReportsWithField(PROOF_REVIEW_FIELD, NEEDS_REVIEW_VALUE)
+
+    private fun observeReportsWithStatus(status: String): Flow<List<IncidentReport>> =
+        firestore.collection(INCIDENTS_COLLECTION)
+            .where(STATUS_FIELD, equalTo = status)
+            .snapshots
+            .map { snapshot ->
+                snapshot.documents.map { it.data<IncidentReport>().copy(id = it.id) }
+                    .sortedByDescending { it.ratificationsCount }
+            }
+
+    private fun observeReportsWithField(field: String, value: String): Flow<List<IncidentReport>> =
+        firestore.collection(INCIDENTS_COLLECTION)
+            .where(field, equalTo = value)
+            .snapshots
+            .map { snapshot ->
+                snapshot.documents.map { it.data<IncidentReport>().copy(id = it.id) }
+            }
+
+    override fun observeOfficialRequests(): Flow<List<OfficialRequest>> =
+        firestore.collection(OFFICIAL_REQUESTS_COLLECTION)
+            .where(REQUEST_STATUS_FIELD, equalTo = PENDING_VALUE)
+            .snapshots
+            .map { snapshot ->
+                snapshot.documents.map { it.data<OfficialRequest>().copy(uid = it.id) }
+                    .sortedBy { it.createdAtEpochMillis }
+            }
+
+    override suspend fun setOfficialRole(
+        uid: String,
+        zone: String?,
+        institution: String?,
+        approved: Boolean,
+        reviewReason: String?,
+    ): Result<Unit> = runCatching {
+        val payload = mutableMapOf<String, Any?>(
+            REPORT_UID_FIELD to uid,
+            APPROVED_FIELD to approved,
+        )
+        zone?.takeIf { it.isNotBlank() }?.let { payload[ZONE_FIELD] = it }
+        institution?.takeIf { it.isNotBlank() }?.let { payload[INSTITUTION_FIELD] = it }
+        reviewReason?.takeIf { it.isNotBlank() }?.let { payload[REVIEW_REASON_FIELD] = it }
+        val ignored: Map<*, *> = functions.httpsCallable(SET_OFFICIAL_ROLE_FUNCTION)(payload).data()
+    }
+
     override fun observeReportUpdates(reportId: String): Flow<List<ReportUpdate>> =
         firestore.collection(INCIDENTS_COLLECTION)
             .document(reportId)
@@ -190,15 +239,6 @@ class FirebaseReportRepository(
             )
     }
 
-    override suspend fun resolveReport(reportId: String, proofPhoto: CapturedPhoto): Result<String> =
-        runCatching {
-            val photoUrl = uploadReportPhoto(reportId, proofPhoto).getOrThrow()
-            firestore.collection(INCIDENTS_COLLECTION)
-                .document(reportId)
-                .update(STATUS_FIELD to RESOLVED_STATUS, RESOLVED_PHOTO_FIELD to photoUrl)
-            photoUrl
-        }
-
     companion object {
         const val USERS_COLLECTION = "users"
         const val DEVICES_COLLECTION = "devices"
@@ -211,6 +251,12 @@ class FirebaseReportRepository(
         const val OFFICIAL_REQUESTS_PATH = "official_requests"
         const val OFFICIAL_RESPOND_FUNCTION = "officialRespond"
         const val REPORT_ID_FIELD = "reportId"
+        const val REPORT_UID_FIELD = "uid"
+        const val APPROVED_FIELD = "approved"
+        const val INSTITUTION_FIELD = "institution"
+        const val REQUEST_STATUS_FIELD = "status"
+        const val PENDING_VALUE = "pending"
+        const val SET_OFFICIAL_ROLE_FUNCTION = "setOfficialRole"
         const val MESSAGE_FIELD = "message"
         const val PROOF_PHOTO_FIELD = "proofPhotoUrl"
         const val MANUAL_REVIEW_FIELD = "manualReview"
@@ -220,13 +266,9 @@ class FirebaseReportRepository(
         const val STATUS_FIELD = "status"
         const val IN_RATIFICATION_STATUS = "in_ratification"
         const val ZONE_FIELD = "zone"
-        const val RESOLVED_PHOTO_FIELD = "resolvedPhotoUrl"
         const val JPEG_CONTENT_TYPE = "image/jpeg"
 
         // Matches the IncidentStatus.PUBLISHED serial name.
         const val PUBLISHED_STATUS = "published"
-
-        // Matches the IncidentStatus.RESOLVED serial name.
-        const val RESOLVED_STATUS = "resolved"
     }
 }

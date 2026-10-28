@@ -8,6 +8,7 @@ import com.actuagt.shared.data.DataGraph
 import com.actuagt.shared.data.ReportRepository
 import com.actuagt.shared.media.CameraCapture
 import com.actuagt.shared.model.IncidentReport
+import com.actuagt.shared.model.OfficialRequest
 import com.actuagt.shared.model.ReportUpdate
 import com.actuagt.shared.model.UserRole
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,6 +28,11 @@ class OfficialDashboardScreenModel(
     private val reportRepository: ReportRepository = DataGraph.reportRepository,
 ) : ScreenModel {
 
+    companion object {
+        // Admin sentinel: sees published reports and proof reviews of every zone.
+        const val ALL_ZONES = "*"
+    }
+
     sealed interface Access {
         data object Checking : Access
 
@@ -41,7 +47,9 @@ class OfficialDashboardScreenModel(
     @OptIn(ExperimentalCoroutinesApi::class)
     val reports: StateFlow<List<IncidentReport>> = access.flatMapLatest { access ->
         val zoneReports: Flow<List<IncidentReport>> = when (access) {
-            is Access.Granted -> reportRepository.observeZoneReports(access.zone)
+            is Access.Granted ->
+                if (access.zone == ALL_ZONES) reportRepository.observeAllPublishedReports()
+                else reportRepository.observeZoneReports(access.zone)
             else -> flowOf(emptyList())
         }
         zoneReports
@@ -50,10 +58,20 @@ class OfficialDashboardScreenModel(
     @OptIn(ExperimentalCoroutinesApi::class)
     val reviewQueue: StateFlow<List<IncidentReport>> = access.flatMapLatest { access ->
         val queue: Flow<List<IncidentReport>> = when (access) {
-            is Access.Granted -> reportRepository.observeProofReviews(access.zone)
+            is Access.Granted ->
+                if (access.zone == ALL_ZONES) reportRepository.observeAllProofReviews()
+                else reportRepository.observeProofReviews(access.zone)
             else -> flowOf(emptyList())
         }
         queue
+    }.stateIn(screenModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val _isAdmin = MutableStateFlow(false)
+    val isAdmin: StateFlow<Boolean> = _isAdmin
+
+    val requests: StateFlow<List<OfficialRequest>> = isAdmin.flatMapLatest { admin ->
+        if (admin) reportRepository.observeOfficialRequests()
+        else flowOf(emptyList())
     }.stateIn(screenModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _resolvingId = MutableStateFlow<String?>(null)
@@ -80,11 +98,60 @@ class OfficialDashboardScreenModel(
         screenModelScope.launch {
             _access.value = Access.Checking
             val profile = authRepository.getUserProfile(uid)
-            _access.value = if (profile?.role == UserRole.OFFICIAL && profile.zone.isNotBlank()) {
-                Access.Granted(profile.zone)
-            } else {
-                Access.Denied
+            _isAdmin.value = profile?.role == UserRole.ADMIN
+            val zone = when {
+                profile?.role == UserRole.OFFICIAL && profile.zone.isNotBlank() -> profile.zone
+                profile?.role == UserRole.ADMIN -> ALL_ZONES
+                else -> null
             }
+            _access.value = if (zone != null) Access.Granted(zone) else Access.Denied
+        }
+    }
+
+    fun approveRequest(request: OfficialRequest) {
+        if (_resolvingId.value != null) return
+        screenModelScope.launch {
+            _resolvingId.value = request.uid
+            _message.value = null
+            val result = reportRepository.setOfficialRole(
+                uid = request.uid,
+                zone = request.zone,
+                institution = request.institution,
+                approved = true,
+                reviewReason = null,
+            )
+            _resolvingId.value = null
+            _message.value = result.fold(
+                onSuccess = { "Funcionario aprobado." },
+                onFailure = { "No se pudo aprobar. Inténtalo de nuevo." },
+            )
+        }
+    }
+
+    fun rejectRequest(request: OfficialRequest) {
+        if (_resolvingId.value != null) return
+        if (_reply.value.isBlank()) {
+            _message.value = "Escribí el motivo del rechazo antes de rechazar la solicitud."
+            return
+        }
+        screenModelScope.launch {
+            _resolvingId.value = request.uid
+            _message.value = null
+            val result = reportRepository.setOfficialRole(
+                uid = request.uid,
+                zone = null,
+                institution = null,
+                approved = false,
+                reviewReason = _reply.value,
+            )
+            _resolvingId.value = null
+            _message.value = result.fold(
+                onSuccess = {
+                    _reply.value = ""
+                    "Solicitud rechazada."
+                },
+                onFailure = { "No se pudo rechazar. Inténtalo de nuevo." },
+            )
         }
     }
 
