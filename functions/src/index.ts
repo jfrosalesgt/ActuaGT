@@ -11,10 +11,12 @@ import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import {
   buildChatMessages,
+  buildCoherenceMessages,
   buildSystemPrompt,
   ChatMessage,
   MUSE_API_URL,
   MUSE_MODEL,
+  parseCoherenceVerdict,
   parseTriageResponse,
   TriageResult,
 } from "./moderation";
@@ -41,6 +43,7 @@ import {
   RatificationEvidence,
   shouldEscalate,
 } from "./escalation";
+export { sweepOrphanPhotos } from "./orphan-sweep";
 
 initializeApp();
 
@@ -94,7 +97,7 @@ async function requestTriage(
       body: JSON.stringify({
         model: MUSE_MODEL,
         temperature: 0,
-        max_tokens: 300,
+        max_tokens: 2000,
         messages: attemptMessages,
       }),
     });
@@ -142,7 +145,7 @@ async function verifyResolutionProof(
     body: JSON.stringify({
       model: MUSE_MODEL,
       temperature: 0,
-      max_tokens: 300,
+      max_tokens: 2000,
       messages: [
         { role: "system", content: buildSystemPrompt() },
         { role: "user", content },
@@ -275,6 +278,85 @@ export const enhanceReportText = onCall(
       throw new HttpsError("invalid-argument", "The transcript is too long.");
     }
 
+    // The model reasons at length before answering: allow room and retry
+    // once with a format reminder when the answer is unusable.
+    const baseMessages = buildTranscriptionMessages(transcript);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const messages =
+        attempt === 0
+          ? baseMessages
+          : [
+              ...baseMessages,
+              {
+                role: "user",
+                content:
+                  "Tu respuesta anterior no fue un objeto JSON válido. Responde ÚNICAMENTE con el objeto JSON indicado, sin texto adicional.",
+              },
+            ];
+      const response = await fetch(MUSE_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${museApiKey.value()}`,
+        },
+        body: JSON.stringify({
+          model: MUSE_MODEL,
+          temperature: 0,
+          max_tokens: 4000,
+          messages,
+        }),
+      });
+      if (!response.ok) {
+        logger.error(`Muse API error ${response.status} during transcription cleanup.`);
+        throw new HttpsError("unavailable", "The cleanup service is unavailable.");
+      }
+      const payload = (await response.json()) as {
+        choices?: Array<{
+          message?: { content?: string };
+          finish_reason?: string;
+        }>;
+      };
+      const raw = payload.choices?.[0]?.message?.content ?? "";
+      logger.info(
+        `Transcription attempt ${attempt + 1}: finish=${payload.choices?.[0]?.finish_reason ?? "unknown"}, chars=${raw.length}.`
+      );
+      const cleaned = parseCleanedTranscription(raw);
+      if (cleaned) {
+        if (cleaned.kind === "security_alert") return { kind: "security_alert" };
+        return { kind: "clean", title: cleaned.title, text: cleaned.text };
+      }
+      logger.warn("Unparseable transcription answer; retrying with format reminder.");
+    }
+    throw new HttpsError("unavailable", "The cleanup service returned an unusable answer.");
+  }
+);
+
+// Pre-submit coherence check: the client uploads the photos first, then
+// asks whether they show the reported problem. A mismatch blocks the
+// submit so the citizen can fix photos or text before moderation.
+export const verifyReportCoherence = onCall(
+  { maxInstances: 10 },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign-in is required.");
+    }
+    const data = (request.data as {
+      title?: unknown;
+      description?: unknown;
+      photoUrls?: unknown;
+    } | null) ?? {};
+    const title = typeof data.title === "string" ? data.title.trim() : "";
+    const description = typeof data.description === "string" ? data.description.trim() : "";
+    const photoUrls = Array.isArray(data.photoUrls)
+      ? data.photoUrls.filter((url): url is string => typeof url === "string" && url.length > 0)
+      : [];
+    if (!title || !description) {
+      throw new HttpsError("invalid-argument", "Title and description are required.");
+    }
+    if (photoUrls.length < 1 || photoUrls.length > 4) {
+      throw new HttpsError("invalid-argument", "Between 1 and 4 photo URLs are required.");
+    }
+
     const response = await fetch(MUSE_API_URL, {
       method: "POST",
       headers: {
@@ -284,25 +366,31 @@ export const enhanceReportText = onCall(
       body: JSON.stringify({
         model: MUSE_MODEL,
         temperature: 0,
-        max_tokens: 300,
-        messages: buildTranscriptionMessages(transcript),
+        max_tokens: 2000,
+        messages: buildCoherenceMessages(title, description, photoUrls),
       }),
     });
     if (!response.ok) {
-      logger.error(`Muse API error ${response.status} during transcription cleanup.`);
-      throw new HttpsError("unavailable", "The cleanup service is unavailable.");
+      logger.error(`Muse API error ${response.status} during coherence check.`);
+      throw new HttpsError("unavailable", "The verification service is unavailable.");
     }
     const payload = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
+      choices?: Array<{
+        message?: { content?: string };
+        finish_reason?: string;
+      }>;
     };
-    const cleaned = parseCleanedTranscription(
-      payload.choices?.[0]?.message?.content ?? ""
+    const raw = payload.choices?.[0]?.message?.content ?? "";
+    logger.info(
+      `Coherence check finish=${payload.choices?.[0]?.finish_reason ?? "unknown"}, chars=${raw.length}, photos=${photoUrls.length}.`
     );
-    if (!cleaned) {
-      throw new HttpsError("unavailable", "The cleanup service returned an unusable answer.");
+    const verdict = parseCoherenceVerdict(raw);
+    if (!verdict) {
+      logger.warn(`Unparseable coherence answer (chars=${raw.length}).`);
+      throw new HttpsError("unavailable", "The verification service returned an unusable answer.");
     }
-    if (cleaned.kind === "security_alert") return { kind: "security_alert" };
-    return { kind: "clean", text: cleaned.text };
+    logger.info(`Coherence verdict match=${verdict.match}.`);
+    return { match: verdict.match, reason: verdict.reason };
   }
 );
 
@@ -675,3 +763,5 @@ export const onratificationcreated = onDocumentCreated(
     }
   }
 );
+
+

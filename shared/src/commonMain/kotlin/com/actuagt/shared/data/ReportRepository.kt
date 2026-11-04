@@ -2,16 +2,35 @@ package com.actuagt.shared.data
 
 import com.actuagt.shared.media.CapturedPhoto
 import com.actuagt.shared.media.NeutralizedText
+import com.actuagt.shared.model.CoherenceVerdict
 import com.actuagt.shared.model.IncidentReport
 import com.actuagt.shared.model.OfficialRequest
 import com.actuagt.shared.model.Ratification
 import com.actuagt.shared.model.ReportUpdate
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+
+// Default page size for the bounded public feed.
+const val VERIFIED_FEED_PAGE_SIZE = 50L
+
+// A rejected listen (missing index, denied read) degrades to an empty view
+// instead of crashing the app: snapshot errors surface as flow failures.
+internal fun <T> Flow<List<T>>.orEmptyOnError(): Flow<List<T>> =
+    catch { emit(emptyList()) }
 
 // Feed and report-submission boundary used by the UI.
 interface ReportRepository {
-    // Public incidents, kept in sync from Firestore.
+    // Public incidents, kept in sync from Firestore. Bounded and newest
+    // first: full-collection reads do not scale with the city.
     val verifiedFeed: Flow<List<IncidentReport>>
+
+    // Cursor page of the public feed, newest first. Pass the
+    // createdAtEpochMillis of the last visible item to fetch the next page,
+    // or null for the first page.
+    fun observeVerifiedFeedPage(
+        limit: Long = VERIFIED_FEED_PAGE_SIZE,
+        startAfterEpochMillis: Long? = null,
+    ): Flow<List<IncidentReport>>
 
     // Reports awaiting citizen ratification in a zone. Not public: the UI
     // exposes it only to registered citizens of that zone.
@@ -28,7 +47,7 @@ interface ReportRepository {
     fun observeZoneReports(zone: String): Flow<List<IncidentReport>>
 
     // Client-generated id for a pending report, so photos can be uploaded
-    // before the document exists and the moderator sees them on creation.
+    // together with the document and the moderator sees them on creation.
     fun newPendingReportId(): String
 
     // Stores a citizen report for official review. Returns the new document id.
@@ -39,12 +58,26 @@ interface ReportRepository {
     suspend fun addRatification(ratification: Ratification): Result<String>
 
     // Uploads the photo bytes to Firebase Storage. Returns the download URL.
-    suspend fun uploadReportPhoto(reportId: String, photo: CapturedPhoto): Result<String>
+    // photoIndex keeps the file name stable (photo-0.jpg, photo-1.jpg...):
+    // a submit retry overwrites the same object instead of orphaning a new one.
+    suspend fun uploadReportPhoto(
+        reportId: String,
+        photo: CapturedPhoto,
+        photoIndex: Int = 0,
+    ): Result<String>
 
     // Neutralises a raw voice transcript through the Meta transcription
     // assistant. The raw transcript is never persisted; only the confirmed
-    // clean text reaches the report.
+    // clean title and text reach the report.
     suspend fun neutralizeText(transcript: String): Result<NeutralizedText>
+
+    // Verifies with the Meta assistant that the uploaded photos show the
+    // reported problem. A mismatch must block the submit client-side.
+    suspend fun verifyReportCoherence(
+        title: String,
+        description: String,
+        photoUrls: List<String>,
+    ): Result<CoherenceVerdict>
 
     // Persists a refreshed FCM token under the current user's devices.
     suspend fun refreshPushToken(token: String): Result<Unit>

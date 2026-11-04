@@ -1,7 +1,12 @@
 package com.actuagt.shared.data
 
 import com.actuagt.shared.media.CapturedPhoto
+import com.actuagt.shared.media.CleanupPayload
 import com.actuagt.shared.media.NeutralizedText
+import com.actuagt.shared.media.toNeutralizedText
+import com.actuagt.shared.model.CoherencePayload
+import com.actuagt.shared.model.CoherenceVerdict
+import com.actuagt.shared.model.toCoherenceVerdict
 import com.actuagt.shared.model.IncidentReport
 import com.actuagt.shared.model.IncidentStatus
 import com.actuagt.shared.model.OfficialRequest
@@ -10,6 +15,7 @@ import com.actuagt.shared.model.ReportUpdate
 import com.actuagt.shared.model.Ratification
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.auth
+import dev.gitlive.firebase.firestore.Direction
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.firestore.firestore
 import dev.gitlive.firebase.functions.FirebaseFunctions
@@ -19,8 +25,9 @@ import dev.gitlive.firebase.storage.FirebaseStorage
 import dev.gitlive.firebase.storage.storage
 import dev.gitlive.firebase.storage.storageMetadata
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 // Firestore-backed reports, callable from commonMain.
 class FirebaseReportRepository(
@@ -37,14 +44,26 @@ class FirebaseReportRepository(
                 if (!snapshot.exists) null
                 else snapshot.data<IncidentReport>().copy(id = snapshot.id)
             }
+            .catch { emit(null) }
 
-    override val verifiedFeed: Flow<List<IncidentReport>> =
-        firestore.collection(INCIDENTS_COLLECTION)
+    override val verifiedFeed: Flow<List<IncidentReport>> = observeVerifiedFeedPage()
+
+    override fun observeVerifiedFeedPage(
+        limit: Long,
+        startAfterEpochMillis: Long?,
+    ): Flow<List<IncidentReport>> {
+        var query = firestore.collection(INCIDENTS_COLLECTION)
             .where(STATUS_FIELD, equalTo = PUBLISHED_STATUS)
-            .snapshots
+            .orderBy(CREATED_AT_FIELD, Direction.DESCENDING)
+        if (startAfterEpochMillis != null) {
+            query = query.startAfter(startAfterEpochMillis)
+        }
+        return query.limit(limit).snapshots
             .map { snapshot ->
                 snapshot.documents.map { it.data<IncidentReport>().copy(id = it.id) }
             }
+            .orEmptyOnError()
+    }
 
     override fun newPendingReportId(): String {
         // No auto-id getter on the reference: timestamp plus random suffix is
@@ -85,16 +104,21 @@ class FirebaseReportRepository(
         firestore.collection(INCIDENTS_COLLECTION)
             .where(ZONE_FIELD, equalTo = zone)
             .where(STATUS_FIELD, equalTo = status)
+            .orderBy(RATIFICATIONS_COUNT_FIELD, Direction.DESCENDING)
             .snapshots
             .map { snapshot ->
                 snapshot.documents.map { it.data<IncidentReport>().copy(id = it.id) }
                     .sortedByDescending { it.ratificationsCount }
             }
+            .orEmptyOnError()
 
-    override suspend fun uploadReportPhoto(reportId: String, photo: CapturedPhoto): Result<String> =
+    override suspend fun uploadReportPhoto(
+        reportId: String,
+        photo: CapturedPhoto,
+        photoIndex: Int,
+    ): Result<String> =
         runCatching {
-            val fileName = "${photo.metadata.capturedAtEpochMillis ?: Clock.System.now().toEpochMilliseconds()}.jpg"
-            val reference = storage.reference("$REPORT_PHOTOS_PATH/$reportId/$fileName")
+            val reference = storage.reference("$REPORT_PHOTOS_PATH/$reportId/photo-$photoIndex.jpg")
             reference.putData(
                 photo.bytes.toStorageData(),
                 storageMetadata { contentType = JPEG_CONTENT_TYPE },
@@ -103,17 +127,23 @@ class FirebaseReportRepository(
         }
 
     override suspend fun neutralizeText(transcript: String): Result<NeutralizedText> = runCatching {
-        val data: Map<*, *> = functions.httpsCallable("enhanceReportText")(
+        functions.httpsCallable("enhanceReportText")(
             mapOf("transcript" to transcript)
-        ).data()
-        when (data["kind"]) {
-            "clean" -> NeutralizedText.Clean(
-                (data["text"] as? String)?.takeIf { it.isNotBlank() }
-                    ?: throw IllegalStateException("Respuesta de limpieza vacía")
+        ).data<CleanupPayload>().toNeutralizedText()
+    }
+
+    override suspend fun verifyReportCoherence(
+        title: String,
+        description: String,
+        photoUrls: List<String>,
+    ): Result<CoherenceVerdict> = runCatching {
+        functions.httpsCallable("verifyReportCoherence")(
+            mapOf(
+                "title" to title,
+                "description" to description,
+                "photoUrls" to photoUrls,
             )
-            "security_alert" -> NeutralizedText.SecurityAlert
-            else -> throw IllegalStateException("Respuesta de limpieza desconocida")
-        }
+        ).data<CoherencePayload>().toCoherenceVerdict()
     }
 
     override suspend fun refreshPushToken(token: String): Result<Unit> = runCatching {
@@ -137,6 +167,7 @@ class FirebaseReportRepository(
             .map { snapshot ->
                 snapshot.documents.map { it.data<IncidentReport>().copy(id = it.id) }
             }
+            .orEmptyOnError()
 
     override fun observeAllPublishedReports(): Flow<List<IncidentReport>> =
         observeReportsWithStatus(PUBLISHED_STATUS)
@@ -147,11 +178,13 @@ class FirebaseReportRepository(
     private fun observeReportsWithStatus(status: String): Flow<List<IncidentReport>> =
         firestore.collection(INCIDENTS_COLLECTION)
             .where(STATUS_FIELD, equalTo = status)
+            .orderBy(CREATED_AT_FIELD, Direction.DESCENDING)
             .snapshots
             .map { snapshot ->
                 snapshot.documents.map { it.data<IncidentReport>().copy(id = it.id) }
                     .sortedByDescending { it.ratificationsCount }
             }
+            .orEmptyOnError()
 
     private fun observeReportsWithField(field: String, value: String): Flow<List<IncidentReport>> =
         firestore.collection(INCIDENTS_COLLECTION)
@@ -160,6 +193,7 @@ class FirebaseReportRepository(
             .map { snapshot ->
                 snapshot.documents.map { it.data<IncidentReport>().copy(id = it.id) }
             }
+            .orEmptyOnError()
 
     override fun observeOfficialRequests(): Flow<List<OfficialRequest>> =
         firestore.collection(OFFICIAL_REQUESTS_COLLECTION)
@@ -169,6 +203,7 @@ class FirebaseReportRepository(
                 snapshot.documents.map { it.data<OfficialRequest>().copy(uid = it.id) }
                     .sortedBy { it.createdAtEpochMillis }
             }
+            .orEmptyOnError()
 
     override suspend fun setOfficialRole(
         uid: String,
@@ -184,7 +219,7 @@ class FirebaseReportRepository(
         zone?.takeIf { it.isNotBlank() }?.let { payload[ZONE_FIELD] = it }
         institution?.takeIf { it.isNotBlank() }?.let { payload[INSTITUTION_FIELD] = it }
         reviewReason?.takeIf { it.isNotBlank() }?.let { payload[REVIEW_REASON_FIELD] = it }
-        val ignored: Map<*, *> = functions.httpsCallable(SET_OFFICIAL_ROLE_FUNCTION)(payload).data()
+        functions.httpsCallable(SET_OFFICIAL_ROLE_FUNCTION)(payload).data<FunctionAck>()
     }
 
     override fun observeReportUpdates(reportId: String): Flow<List<ReportUpdate>> =
@@ -196,6 +231,7 @@ class FirebaseReportRepository(
                 snapshot.documents.map { it.data<ReportUpdate>().copy(id = it.id) }
                     .sortedBy { it.createdAtEpochMillis }
             }
+            .orEmptyOnError()
 
     override suspend fun officialRespond(
         reportId: String,
@@ -214,7 +250,7 @@ class FirebaseReportRepository(
         proofPhotoUrl?.let { payload[PROOF_PHOTO_FIELD] = it }
         manualReview?.let { payload[MANUAL_REVIEW_FIELD] = it }
         reviewReason?.takeIf { it.isNotBlank() }?.let { payload[REVIEW_REASON_FIELD] = it }
-        val ignored: Map<*, *> = functions.httpsCallable(OFFICIAL_RESPOND_FUNCTION)(payload).data()
+        functions.httpsCallable(OFFICIAL_RESPOND_FUNCTION)(payload).data<FunctionAck>()
     }
 
     override suspend fun submitOfficialRequest(
@@ -266,6 +302,8 @@ class FirebaseReportRepository(
         const val STATUS_FIELD = "status"
         const val IN_RATIFICATION_STATUS = "in_ratification"
         const val ZONE_FIELD = "zone"
+        const val CREATED_AT_FIELD = "createdAtEpochMillis"
+        const val RATIFICATIONS_COUNT_FIELD = "ratificationsCount"
         const val JPEG_CONTENT_TYPE = "image/jpeg"
 
         // Matches the IncidentStatus.PUBLISHED serial name.
