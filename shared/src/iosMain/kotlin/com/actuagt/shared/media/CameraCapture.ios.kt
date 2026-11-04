@@ -4,4 +4,8 @@ actual class CameraCapture actual constructor() {
     actual suspend fun takePhoto(): CapturedPhoto? {
         TODO("Wire with the iOS app: present the system image picker, then ExifMetadataExtractor.extract(bytes).")
     }
+
+    actual fun isCaptureAvailable(): Boolean = false
+
+    actual suspend fun ensureAccess(): Boolean = false
 }

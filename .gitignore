@@ -29,3 +29,15 @@ replay_pid*
 # Archivos de configuración de Firebase
 google-services.json
 GoogleService-Info.plist
+functions/.env.*
+
+# Locales de máquina y cachés de build
+local.properties
+.gradle/
+.idea/
+build/
+shared/build/
+androidApp/build/
+functions/lib/
+functions/node_modules/
+generated_images/

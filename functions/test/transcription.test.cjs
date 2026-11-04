@@ -26,7 +26,10 @@ test("transcription prompt encodes the neutralisation rules", () => {
   assert.match(prompt, /palabra altisonante|insulto/);
   assert.match(prompt, /Hoyo enorme en la 5ta calle/);
   assert.match(prompt, /ALERTA_DE_SEGURIDAD_NO_APTA_PARA_INFRAESTRUCTURA/);
-  assert.match(prompt, /ÚNICAMENTE el texto limpio/);
+  assert.match(prompt, /4 a 8 palabras/);
+  assert.match(prompt, /ESTRICTAMENTE JSON/);
+  assert.match(prompt, /"title"/);
+  assert.match(prompt, /"description"/);
 });
 
 test("transcription messages carry the raw transcript as user content", () => {

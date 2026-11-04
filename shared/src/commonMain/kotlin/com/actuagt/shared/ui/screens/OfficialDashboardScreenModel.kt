@@ -240,6 +240,10 @@ class OfficialDashboardScreenModel(
 
     private fun actOn(report: IncidentReport, status: String?, withPhoto: Boolean) {
         if (_resolvingId.value != null) return
+        if (withPhoto && !CameraCapture().isCaptureAvailable()) {
+            _message.value = "Este dispositivo no tiene cámara disponible."
+            return
+        }
         screenModelScope.launch {
             val photo = if (withPhoto) {
                 CameraCapture().takePhoto() ?: return@launch.also {

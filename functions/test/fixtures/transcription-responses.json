@@ -1,8 +1,13 @@
 [
   {
-    "name": "normative example cleaned by the model",
-    "raw": "Hoyo enorme en la 5ta calle",
-    "expected": { "kind": "clean", "text": "Hoyo enorme en la 5ta calle" }
+    "name": "normative object cleaned by the model",
+    "raw": "{\"title\": \"Hoyo enorme en la 5ta calle\", \"description\": \"Hoyo enorme en la 5ta calle que dificulta el paso\"}",
+    "expected": { "kind": "clean", "title": "Hoyo enorme en la 5ta calle", "text": "Hoyo enorme en la 5ta calle que dificulta el paso" }
+  },
+  {
+    "name": "fenced object is still parsed",
+    "raw": "```json\n{\"title\": \"Fuga de agua frente al parque\", \"description\": \"Fuga de agua frente al parque desde ayer\"}\n```",
+    "expected": { "kind": "clean", "title": "Fuga de agua frente al parque", "text": "Fuga de agua frente al parque desde ayer" }
   },
   {
     "name": "security topic returns the exact alert token",
@@ -11,8 +16,18 @@
   },
   {
     "name": "extra whitespace is collapsed",
-    "raw": "  Fuga   de agua\nfrente al parque  ",
-    "expected": { "kind": "clean", "text": "Fuga de agua frente al parque" }
+    "raw": "{\"title\": \"  Fuga   de agua  frente al parque  \", \"description\": \"Fuga   de agua\\nfrente al parque  \"}",
+    "expected": { "kind": "clean", "title": "Fuga de agua frente al parque", "text": "Fuga de agua frente al parque" }
+  },
+  {
+    "name": "plain prose is unusable",
+    "raw": "Hoyo enorme en la 5ta calle",
+    "expected": null
+  },
+  {
+    "name": "object without title is unusable",
+    "raw": "{\"description\": \"Falta el título\"}",
+    "expected": null
   },
   {
     "name": "empty answer is unusable",

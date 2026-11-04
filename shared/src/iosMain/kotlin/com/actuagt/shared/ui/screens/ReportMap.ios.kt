@@ -1,6 +1,5 @@
 package com.actuagt.shared.ui.screens
 
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.actuagt.shared.model.IncidentReport
@@ -9,7 +8,10 @@ import com.actuagt.shared.model.IncidentReport
 actual fun ReportMap(
     reports: List<IncidentReport>,
     onSelect: (IncidentReport) -> Unit,
+    selectedLatitude: Double?,
+    selectedLongitude: Double?,
+    onMapTap: (latitude: Double, longitude: Double) -> Unit,
+    onMyLocationClick: () -> Unit,
+    locating: Boolean,
     modifier: Modifier,
-) {
-    Text(text = "Mapa no disponible en iOS todavía.", modifier = modifier)
-}
+) = Unit

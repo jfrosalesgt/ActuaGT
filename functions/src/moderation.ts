@@ -129,3 +129,67 @@ export function parseTriageResponse(raw: string | null | undefined): TriageResul
     suggestedTitle: cleanTitle,
   };
 }
+
+// Pre-submit coherence verdict: do the uploaded photos show the reported
+// infrastructure problem? The client blocks the submit on mismatch so the
+// citizen can fix photos or text before reaching moderation.
+export interface CoherenceVerdict {
+  match: boolean;
+  reason: string;
+}
+
+export function buildCoherenceMessages(
+  title: string,
+  description: string,
+  photoUrls: string[]
+): ChatMessage[] {
+  const text =
+    `Título: ${title}\nDescripción: ${description}\n` +
+    `Las imágenes son la evidencia del reporte. Confirma que muestran el MISMO problema de infraestructura descrito en el texto: mismo lugar y mismo daño visible, sin capturas de pantalla ni arte digital.`;
+  const content: unknown[] = [{ type: "text", text }];
+  for (const url of photoUrls) {
+    content.push({ type: "image_url", image_url: { url } });
+  }
+  return [
+    {
+      role: "system",
+      content: [
+        'Eres el verificador de coherencia de "ActuaGT", una plataforma de infraestructura urbana.',
+        "Recibirás el título, la descripción y las fotos de un reporte ciudadano.",
+        "Responde ÚNICAMENTE con un objeto JSON válido, sin formato de código markdown, sin texto antes ni después.",
+        "{",
+        '  "match": true cuando las fotos muestran el mismo problema descrito, false en caso contrario,',
+        '  "reason": "Explicación muy breve (máximo 20 palabras)"',
+        "}",
+      ].join("\n"),
+    },
+    { role: "user", content },
+  ];
+}
+
+// Parses the strict JSON coherence answer. Null when unusable, in which
+// case the caller treats it as a service failure, not a mismatch.
+export function parseCoherenceVerdict(
+  raw: string | null | undefined
+): CoherenceVerdict | null {
+  if (!raw) return null;
+  let text = raw.trim();
+  const fenced = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fenced) text = fenced[1].trim();
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const candidate = parsed as Record<string, unknown>;
+  if (typeof candidate.match !== "boolean") return null;
+  if (typeof candidate.reason !== "string") return null;
+  const reason = candidate.reason.trim();
+  if (wordCount(reason) < 1 || wordCount(reason) > 20) return null;
+  return { match: candidate.match, reason };
+}

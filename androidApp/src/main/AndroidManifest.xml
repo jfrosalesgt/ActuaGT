@@ -6,6 +6,9 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- Required for voice dictation (SpeechRecognizer). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Required for report geolocation (GPS fix in Reportar). -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- Required for push notifications on Android 13+. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-feature
@@ -14,6 +17,8 @@
 
     <application
         android:label="ActuaGT"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -38,7 +43,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:theme="@android:style/Theme.Material.Light.NoActionBar">
+            android:theme="@style/Theme.ActuaGT.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

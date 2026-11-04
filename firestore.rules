@@ -18,6 +18,22 @@ service cloud.firestore {
       return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
 
+    // Zone of the caller's own app profile, or '' when it is missing.
+    // Lets zone members follow non-public cases without exposing them city-wide.
+    function callerZone() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.zone
+        : '';
+    }
+
+    function sameZone(zone) {
+      return zone != '' && callerZone() == zone;
+    }
+
+    function parentIncident(reportId) {
+      return get(/databases/$(database)/documents/incidents/$(reportId));
+    }
+
     // App profiles: anyone signed in reads their own; creation is
     // citizen-only and the role is immutable from the client.
     match /users/{userId} {
@@ -40,9 +56,10 @@ service cloud.firestore {
     }
 
     // Moderation inbox: clients only create pending reports; updates and
-    // deletes happen through Cloud Functions (Admin SDK).
+    // deletes happen through Cloud Functions (Admin SDK). Reads are
+    // restricted to the author and admins: the inbox is pre-moderation.
     match /pending_reports/{reportId} {
-      allow read: if signedIn();
+      allow read: if isSelf(resource.data.reportedByUid) || isAdmin();
       allow create: if signedIn()
         && request.resource.data.reportedByUid == request.auth.uid
         && request.resource.data.status == 'pending';
@@ -50,24 +67,35 @@ service cloud.firestore {
     }
 
     // Single collection for the report lifecycle (see IncidentStatus):
-    // IN_RATIFICATION is visible only to feed the ratification queue,
-    // PUBLISHED is the only state the public feed reads.
+    // PUBLISHED is public; any other state is visible only to the author,
+    // members of the report zone, and admins.
     match /incidents/{reportId} {
-      allow read: if signedIn();
+      allow read: if signedIn() && (
+        resource.data.status == 'published'
+        || resource.data.reportedByUid == request.auth.uid
+        || sameZone(resource.data.zone)
+        || isAdmin()
+      );
       allow create, update, delete: if false;
 
       // One ratification per user (document id == uid), no self-ratification,
-      // and only with photo evidence plus a written description.
+      // and only with non-empty photo evidence plus a bounded description.
       match /ratifications/{ratificationId} {
-        allow read: if signedIn();
+        allow read: if signedIn() && (
+          parentIncident(reportId).data.status == 'published'
+          || sameZone(parentIncident(reportId).data.zone)
+          || isAdmin()
+        );
         allow create: if notAnonymous()
           && ratificationId == request.auth.uid
           && request.resource.data.userUid == request.auth.uid
           && request.resource.data.reportId == reportId
-          && request.resource.data.userUid != get(/databases/$(database)/documents/incidents/$(reportId)).data.reportedByUid
+          && request.resource.data.userUid != parentIncident(reportId).data.reportedByUid
           && request.resource.data.photoUrl is string
+          && request.resource.data.photoUrl.size() > 0
           && request.resource.data.comment is string
-          && request.resource.data.comment.size() > 0;
+          && request.resource.data.comment.size() > 0
+          && request.resource.data.comment.size() <= 500;
         allow update, delete: if false;
       }
     }

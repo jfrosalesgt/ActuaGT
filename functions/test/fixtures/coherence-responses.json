@@ -1,0 +1,32 @@
+[
+  {
+    "name": "matching photos are approved",
+    "raw": "{\"match\": true, \"reason\": \"Las fotos muestran el bache descrito\"}",
+    "expected": { "match": true, "reason": "Las fotos muestran el bache descrito" }
+  },
+  {
+    "name": "mismatched photos are rejected",
+    "raw": "{\"match\": false, \"reason\": \"Las fotos muestran una calle sin daños\"}",
+    "expected": { "match": false, "reason": "Las fotos muestran una calle sin daños" }
+  },
+  {
+    "name": "fenced answer is still parsed",
+    "raw": "```json\n{\"match\": true, \"reason\": \"Coincide el lugar y el daño\"}\n```",
+    "expected": { "match": true, "reason": "Coincide el lugar y el daño" }
+  },
+  {
+    "name": "non-boolean match is unusable",
+    "raw": "{\"match\": \"yes\", \"reason\": \"Parece que sí\"}",
+    "expected": null
+  },
+  {
+    "name": "plain prose is unusable",
+    "raw": "Todo coincide",
+    "expected": null
+  },
+  {
+    "name": "empty answer is unusable",
+    "raw": "   ",
+    "expected": null
+  }
+]

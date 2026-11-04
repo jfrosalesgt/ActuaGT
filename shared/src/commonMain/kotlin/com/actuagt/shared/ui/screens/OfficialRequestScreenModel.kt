@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 // Backs the official-access application form. The client only creates
 // `pending` requests; approval happens outside the client.
@@ -53,6 +53,10 @@ class OfficialRequestScreenModel(
     fun onZoneChange(value: String) { _zone.value = value; _message.value = null }
 
     fun attachCredential() {
+        if (!CameraCapture().isCaptureAvailable()) {
+            _message.value = "Este dispositivo no tiene cámara disponible."
+            return
+        }
         screenModelScope.launch {
             CameraCapture().takePhoto()?.let { _credential.value = it }
         }
