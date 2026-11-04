@@ -20,6 +20,8 @@ import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import com.actuagt.shared.ui.components.SectionBanner
+import com.actuagt.shared.ui.components.StatusChip
 
 // Single incident opened from a push notification deep link. When the
 // report is gone (or never visible to this user) it says so plainly.
@@ -37,6 +39,10 @@ class ReportDetailScreen(val reportId: String) : Screen {
             Button(onClick = { navigator.pop() }, modifier = Modifier.fillMaxWidth()) {
                 Text(text = "Volver")
             }
+            SectionBanner(
+                title = "Detalle del reporte",
+                subtitle = "Estado, evidencia y ratificaciones del caso",
+            )
             Spacer(modifier = Modifier.height(12.dp))
             if (!loaded) {
                 CircularProgressIndicator()
@@ -47,6 +53,8 @@ class ReportDetailScreen(val reportId: String) : Screen {
                 } else {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(12.dp)) {
+                            StatusChip(status = current.status)
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = current.title,
                                 style = MaterialTheme.typography.titleMedium,

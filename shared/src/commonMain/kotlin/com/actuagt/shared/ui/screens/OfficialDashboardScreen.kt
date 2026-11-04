@@ -15,8 +15,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import com.actuagt.shared.ui.components.ActuaGTTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,6 +33,9 @@ import com.actuagt.shared.auth.SessionState
 import com.actuagt.shared.model.IncidentReport
 import com.actuagt.shared.model.IncidentStatus
 import com.actuagt.shared.model.ReportUpdate
+import com.actuagt.shared.ui.components.SectionBanner
+import com.actuagt.shared.ui.components.SectionHeader
+import com.actuagt.shared.ui.components.StatusChip
 
 // Officials-only dashboard: published reports of their zone ordered by
 // ratification count, with a public response thread per report.
@@ -61,9 +64,9 @@ object OfficialDashboardScreen : Screen {
         Column(
             modifier = Modifier.fillMaxSize().padding(16.dp),
         ) {
-            Text(
-                text = "Panel oficial",
-                style = MaterialTheme.typography.headlineSmall,
+            SectionBanner(
+                title = "Panel oficial",
+                subtitle = "Casos publicados, respuestas y solicitudes de acceso",
             )
             Spacer(modifier = Modifier.height(12.dp))
             when (val current = access) {
@@ -113,9 +116,8 @@ object OfficialDashboardScreen : Screen {
                     }
                     if (reviewQueue.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Pruebas por revisar (${reviewQueue.size})",
-                            style = MaterialTheme.typography.titleSmall,
+                        SectionHeader(
+                            title = "Pruebas por revisar (${reviewQueue.size})",
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         reviewQueue.forEach { report ->
@@ -173,12 +175,13 @@ private fun OfficialReportRow(
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp).clickable(onClick = onToggle)) {
-            Row {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = report.title,
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
+                StatusChip(status = report.status)
                 if (resolving) CircularProgressIndicator()
             }
             Text(text = report.description, style = MaterialTheme.typography.bodyMedium)
@@ -189,7 +192,7 @@ private fun OfficialReportRow(
             )
             if (expanded) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "Respuestas oficiales", style = MaterialTheme.typography.labelLarge)
+                SectionHeader(title = "Respuestas oficiales")
                 if (updates.isEmpty()) {
                     Text(
                         text = "Aún sin respuestas.",
@@ -203,11 +206,10 @@ private fun OfficialReportRow(
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
+                ActuaGTTextField(
                     value = reply,
                     onValueChange = onReplyChange,
-                    label = { Text(text = "Respuesta pública") },
-                    modifier = Modifier.fillMaxWidth(),
+                    label = "Respuesta pública",
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -271,11 +273,10 @@ private fun ProofReviewRow(
                 style = MaterialTheme.typography.bodySmall,
             )
             Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
+            ActuaGTTextField(
                 value = reply,
                 onValueChange = onReplyChange,
-                label = { Text(text = "Motivo (para rechazar)") },
-                modifier = Modifier.fillMaxWidth(),
+                label = "Motivo (para rechazar)",
             )
             Spacer(modifier = Modifier.height(8.dp))
             Row {
@@ -324,11 +325,10 @@ private fun RequestRow(
                 style = MaterialTheme.typography.bodySmall,
             )
             Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
+            ActuaGTTextField(
                 value = reply,
                 onValueChange = onReplyChange,
-                label = { Text(text = "Motivo (para rechazar)") },
-                modifier = Modifier.fillMaxWidth(),
+                label = "Motivo (para rechazar)",
             )
             Spacer(modifier = Modifier.height(8.dp))
             Row {
@@ -373,39 +373,34 @@ private fun OfficialRequestForm(model: OfficialRequestScreenModel) {
             style = MaterialTheme.typography.bodyMedium,
         )
         Spacer(modifier = Modifier.height(12.dp))
-        OutlinedTextField(
+        ActuaGTTextField(
             value = fullName,
             onValueChange = model::onFullNameChange,
-            label = { Text(text = "Nombre completo") },
-            modifier = Modifier.fillMaxWidth(),
+            label = "Nombre completo",
         )
         Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(
+        ActuaGTTextField(
             value = institution,
             onValueChange = model::onInstitutionChange,
-            label = { Text(text = "Institución") },
-            modifier = Modifier.fillMaxWidth(),
+            label = "Institución",
         )
         Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(
+        ActuaGTTextField(
             value = position,
             onValueChange = model::onPositionChange,
-            label = { Text(text = "Cargo") },
-            modifier = Modifier.fillMaxWidth(),
+            label = "Cargo",
         )
         Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(
+        ActuaGTTextField(
             value = email,
             onValueChange = model::onEmailChange,
-            label = { Text(text = "Correo institucional") },
-            modifier = Modifier.fillMaxWidth(),
+            label = "Correo institucional",
         )
         Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(
+        ActuaGTTextField(
             value = zone,
             onValueChange = model::onZoneChange,
-            label = { Text(text = "Zona (municipio)") },
-            modifier = Modifier.fillMaxWidth(),
+            label = "Zona (municipio)",
         )
         Spacer(modifier = Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
