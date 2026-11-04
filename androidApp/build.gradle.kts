@@ -36,6 +36,7 @@ android {
         versionCode = 1
         versionName = "1.0"
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -56,4 +57,14 @@ dependencies {
     implementation(libs.firebase.messaging)
     implementation(libs.maps.compose)
     implementation(libs.maps.compose.utils)
+    implementation(libs.androidx.splashscreen)
+    // Real Google Sign-In through Credential Manager.
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
+    androidTestImplementation(libs.junit4)
+    androidTestImplementation(libs.androidx.test.runner)
+    // Supertypes/signatures of the shared models under test.
+    androidTestImplementation(libs.voyager.screenmodel)
+    androidTestImplementation(libs.kotlinx.coroutines.core)
 }

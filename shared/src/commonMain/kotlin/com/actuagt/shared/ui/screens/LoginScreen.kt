@@ -52,11 +52,18 @@ object LoginScreen : Screen {
             verticalArrangement = Arrangement.Center,
         ) {
             Text(
-                text = "ActuaGT",
-                style = MaterialTheme.typography.headlineLarge,
+                text = "ACTUA GT",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Infraestructura verificada por la ciudadanía",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "Inicia sesión para continuar")
+            Text(text = "Inicia sesión para reportar y validar casos")
             Spacer(modifier = Modifier.height(24.dp))
             Button(
                 onClick = { sessionModel.signInWithGoogle() },

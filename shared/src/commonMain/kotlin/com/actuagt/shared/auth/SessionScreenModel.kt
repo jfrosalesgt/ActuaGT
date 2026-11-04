@@ -63,9 +63,19 @@ class SessionScreenModel(
                     }
                 }
             } else {
-                _errorMessage.value = "No se pudo iniciar sesión. Inténtalo de nuevo."
+                _errorMessage.value = signInErrorMessage(result)
             }
             _signingIn.value = false
         }
     }
 }
+
+// Maps a sign-in result to user-facing copy: success and an abandoned
+// Google picker stay silent, any other failure explains briefly.
+// Kept top-level and pure so the contract is unit-tested directly.
+fun signInErrorMessage(result: Result<Unit>): String? =
+    if (result.isSuccess || result.exceptionOrNull() is GoogleSignInCancelledException) {
+        null
+    } else {
+        "No se pudo iniciar sesión. Inténtalo de nuevo."
+    }

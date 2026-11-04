@@ -74,6 +74,8 @@ kotlin {
             implementation(libs.firebase.messaging)
             implementation(libs.maps.compose)
             implementation(libs.maps.compose.utils)
+            // Fused location for the report geolocation (GPS fix + fallback).
+            implementation(libs.play.services.location)
             // ActivityResult (TakePicture) for the real camera wiring.
             implementation(libs.androidx.activity.ktx)
             // Pinned Firebase Android SDK (versions taken from firebase-bom 35.1.0).
