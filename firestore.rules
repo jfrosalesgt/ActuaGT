@@ -1,0 +1,125 @@
+rules_version = '2';
+
+// ActuaGT Firestore rules: reports stay private until PUBLISHED; officials
+// are privileged server-side only. Cloud Functions use the Admin SDK and
+// bypass these rules.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function notAnonymous() {
+      return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    // Zone of the caller's own app profile, or '' when it is missing.
+    // Lets zone members follow non-public cases without exposing them city-wide.
+    function callerZone() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.zone
+        : '';
+    }
+
+    function sameZone(zone) {
+      return zone != '' && callerZone() == zone;
+    }
+
+    function parentIncident(reportId) {
+      return get(/databases/$(database)/documents/incidents/$(reportId));
+    }
+
+    // App profiles: anyone signed in reads their own; creation is
+    // citizen-only and the role is immutable from the client.
+    match /users/{userId} {
+      allow read: if isSelf(userId);
+      allow create: if isSelf(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.role == 'CITIZEN'
+        && request.resource.data.zone == '';
+      allow update: if isSelf(userId)
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.uid == resource.data.uid;
+      allow delete: if false;
+    }
+
+    // Push device tokens: each user manages only their own devices.
+    match /users/{userId}/devices/{token} {
+      allow read: if isSelf(userId);
+      allow create, update: if isSelf(userId);
+      allow delete: if false;
+    }
+
+    // Moderation inbox: clients only create pending reports; updates and
+    // deletes happen through Cloud Functions (Admin SDK). Reads are
+    // restricted to the author and admins: the inbox is pre-moderation.
+    match /pending_reports/{reportId} {
+      allow read: if isSelf(resource.data.reportedByUid) || isAdmin();
+      allow create: if signedIn()
+        && request.resource.data.reportedByUid == request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow update, delete: if false;
+    }
+
+    // Single collection for the report lifecycle (see IncidentStatus):
+    // PUBLISHED is public; any other state is visible only to the author,
+    // members of the report zone, and admins.
+    match /incidents/{reportId} {
+      allow read: if signedIn() && (
+        resource.data.status == 'published'
+        || resource.data.reportedByUid == request.auth.uid
+        || sameZone(resource.data.zone)
+        || isAdmin()
+      );
+      allow create, update, delete: if false;
+
+      // One ratification per user (document id == uid), no self-ratification,
+      // and only with non-empty photo evidence plus a bounded description.
+      match /ratifications/{ratificationId} {
+        allow read: if signedIn() && (
+          parentIncident(reportId).data.status == 'published'
+          || sameZone(parentIncident(reportId).data.zone)
+          || isAdmin()
+        );
+        allow create: if notAnonymous()
+          && ratificationId == request.auth.uid
+          && request.resource.data.userUid == request.auth.uid
+          && request.resource.data.reportId == reportId
+          && request.resource.data.userUid != parentIncident(reportId).data.reportedByUid
+          && request.resource.data.photoUrl is string
+          && request.resource.data.photoUrl.size() > 0
+          && request.resource.data.comment is string
+          && request.resource.data.comment.size() > 0
+          && request.resource.data.comment.size() <= 500;
+        allow update, delete: if false;
+      }
+    }
+
+    // Public timeline of official responses. Clients only read: every write
+    // goes through the officialRespond function, which verifies the author's
+    // OFFICIAL profile and matching zone.
+    match /incidents/{reportId}/report_updates/{updateId} {
+      allow read: if signedIn();
+      allow create, update, delete: if false;
+    }
+
+    // Official requests: the applicant creates and reads their own pending
+    // request; admins read the whole queue to approve from the app.
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    match /official_requests/{userId} {
+      allow read: if isSelf(userId) || isAdmin();
+      allow create: if isSelf(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.status == 'pending';
+      allow update, delete: if false;
+    }
+  }
+}

@@ -1,0 +1,5 @@
+# Firebase Functions scaffold: dependencies, build output, and local secrets.
+node_modules/
+lib/
+*.log
+.runtimeconfig.json
