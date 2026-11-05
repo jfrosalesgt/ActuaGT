@@ -193,7 +193,6 @@ object AndroidVoice {
                             transcript.append(chunk)
                         } else if (segmentEmptyResult && emptyRetries < MAX_EMPTY_RETRIES) {
                             emptyRetries++
-                            Log.i(TAG, "empty segment, retrying ($emptyRetries/$MAX_EMPTY_RETRIES)")
                             delay(EMPTY_RETRY_DELAY_MILLIS)
                         } else {
                             break
@@ -219,7 +218,6 @@ object AndroidVoice {
         // through the system voice popup before reporting failure. Skipped
         // for an accidental instant tap (Detener within 2 s with nothing said).
         if (transcript.isEmpty() && !cleanSilence && !(stopRequested && elapsed < 2_000L)) {
-            Log.i(TAG, "direct path empty, trying system voice popup")
             fallbackDictation(host, intent)?.let {
                 usedFallback = true
                 if (transcript.isNotEmpty()) transcript.append(' ')
@@ -233,12 +231,6 @@ object AndroidVoice {
             // switches back.
             prefs.edit().putBoolean(KEY_PREFER_POPUP, usedFallback).apply()
         }
-        Log.i(
-            TAG,
-            "listen done: chars=${transcript.length} silentEnd=$segmentSilentEnd " +
-                "heardSpeech=$heardSpeech hadEmptyBlip=$hadEmptyBlip " +
-                "stopRequested=$stopRequested",
-        )
         return transcript.toString().takeIf { it.isNotBlank() }
     }
 

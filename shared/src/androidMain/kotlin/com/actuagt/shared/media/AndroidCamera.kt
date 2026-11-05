@@ -65,7 +65,7 @@ object AndroidCamera {
         permissionLauncher?.launch(Manifest.permission.CAMERA) ?: return false
         val granted = withTimeoutOrNull(PERMISSION_TIMEOUT_MILLIS) { deferred.await() }
         if (granted == null) {
-            Log.d(TAG, "camera permission answer timed out")
+            Log.w(TAG, "camera permission answer timed out")
             permissionResult = null
         }
         return granted == true
@@ -87,20 +87,9 @@ object AndroidCamera {
     }
 
     suspend fun capture(): ByteArray? = mutex.withLock {
-        val host = activity
-        if (host == null) {
-            Log.d(TAG, "capture without a registered activity")
-            return null
-        }
-        val activeLauncher = launcher
-        if (activeLauncher == null) {
-            Log.d(TAG, "capture without a TakePicture launcher")
-            return null
-        }
-        if (!isAvailable()) {
-            Log.d(TAG, "no camera app handles IMAGE_CAPTURE")
-            return null
-        }
+        val host = activity ?: return null
+        val activeLauncher = launcher ?: return null
+        if (!isAvailable()) return null
         val file = File(host.cacheDir, "actuagt_${System.currentTimeMillis()}.jpg")
         val uri = FileProvider.getUriForFile(host, FILE_PROVIDER_AUTHORITY, file)
         val deferred = CompletableDeferred<Boolean>()
@@ -109,14 +98,14 @@ object AndroidCamera {
         try {
             activeLauncher.launch(uri)
         } catch (e: Exception) {
-            Log.d(TAG, "TakePicture launch failed", e)
+            Log.w(TAG, "TakePicture launch failed", e)
             pending = null
             file.delete()
             return null
         }
         val success = withTimeoutOrNull(CAPTURE_TIMEOUT_MILLIS) { deferred.await() }
         if (success == null) {
-            Log.d(TAG, "TakePicture answer timed out")
+            Log.w(TAG, "TakePicture answer timed out")
         }
         pending = null
         return if (success == true && file.exists()) {
