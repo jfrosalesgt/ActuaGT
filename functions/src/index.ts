@@ -43,12 +43,22 @@ import {
   RatificationEvidence,
   shouldEscalate,
 } from "./escalation";
+import {
+  buildSamRequest,
+  damageDocumentFragment,
+  DamageSegmentation,
+  parseSamResponse,
+} from "./sam";
 export { sweepOrphanPhotos } from "./orphan-sweep";
 
 initializeApp();
 
 // Set with: firebase functions:secrets:set MUSE_API_KEY
 const museApiKey = defineString("MUSE_API_KEY");
+// Set with: firebase functions:secrets:set SAM_API_URL  (hosted SAM 3.1 endpoint)
+// Optional: firebase functions:secrets:set SAM_API_TOKEN (bearer for that endpoint)
+const samApiUrl = defineString("SAM_API_URL", { default: "" });
+const samApiToken = defineString("SAM_API_TOKEN", { default: "" });
 
 // Shape of the documents written by the KMP client to `pending_reports`.
 interface PendingReport {
@@ -162,6 +172,35 @@ async function verifyResolutionProof(
   return parseTriageResponse(payload.choices?.[0]?.message?.content ?? "");
 }
 
+// Calls the hosted SAM 3.1 endpoint once. Null when unconfigured,
+// unreachable, or unusable: segmentation enriches the report but never
+// blocks moderation, so failures degrade to "no damage overlay".
+async function requestSamSegmentation(
+  photoUrls: string[],
+  category: string | undefined
+): Promise<DamageSegmentation | null> {
+  const endpoint = samApiUrl.value().trim();
+  if (!endpoint) return null;
+  try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const token = samApiToken.value().trim();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(buildSamRequest(photoUrls, category)),
+    });
+    if (!response.ok) {
+      logger.warn(`SAM API error ${response.status}; continuing without segmentation.`);
+      return null;
+    }
+    return parseSamResponse(await response.text(), category);
+  } catch (error) {
+    logger.warn("SAM API call failed; continuing without segmentation.", error);
+    return null;
+  }
+}
+
 // Moderates every new pending report with Meta Muse AI. APPROVED moves the
 // report to `incidents` in `in_ratification` (never public yet); REJECTED
 // marks it rejected with the motive; anything else leaves it pending for
@@ -223,6 +262,20 @@ export const onpendingreportcreated = onDocumentCreated(
       batch.delete(snapshot.ref);
       await batch.commit();
       logger.info(`Report ${reportId} approved and moved to incidents for ratification.`);
+
+      // Backend-auto SAM: enrich the approved incident with damage boxes.
+      // Best-effort only: a missing endpoint or a failed call leaves the
+      // incident exactly as moderation approved it.
+      try {
+        const segmentation = await requestSamSegmentation(photoUrls, verdict.category);
+        const fragment = damageDocumentFragment(segmentation);
+        if (fragment) {
+          await db.collection("incidents").doc(reportId).update(fragment);
+          logger.info(`Report ${reportId} enriched with SAM damage overlay.`);
+        }
+      } catch (error) {
+        logger.warn(`SAM enrichment failed for report ${reportId}.`, error);
+      }
       const data = { reportId };
       if (report.reportedByUid) {
         await notifyUser(
@@ -391,6 +444,42 @@ export const verifyReportCoherence = onCall(
     }
     logger.info(`Coherence verdict match=${verdict.match}.`);
     return { match: verdict.match, reason: verdict.reason };
+  }
+);
+
+// On-demand SAM segmentation for the client: returns damage boxes plus a
+// score without writing anything. Lets the app show the overlay (and warn
+// on "no visible damage") before the user submits. Unconfigured endpoint
+// fails with `unavailable` so the client falls back to the SAM-free flow.
+export const segmentDamage = onCall(
+  { maxInstances: 10 },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign-in is required.");
+    }
+    const data = (request.data as {
+      photoUrls?: unknown;
+      category?: unknown;
+    } | null) ?? {};
+    const photoUrls = Array.isArray(data.photoUrls)
+      ? data.photoUrls.filter((url): url is string => typeof url === "string" && url.length > 0)
+      : [];
+    const category = typeof data.category === "string" ? data.category : "OTROS";
+    if (photoUrls.length < 1 || photoUrls.length > 4) {
+      throw new HttpsError("invalid-argument", "Between 1 and 4 photo URLs are required.");
+    }
+    if (!samApiUrl.value().trim()) {
+      throw new HttpsError("unavailable", "The segmentation service is not configured.");
+    }
+    const segmentation = await requestSamSegmentation(photoUrls, category);
+    if (!segmentation) {
+      throw new HttpsError("unavailable", "The segmentation service returned an unusable answer.");
+    }
+    return {
+      boxes: segmentation.boxes,
+      score: segmentation.score,
+      labels: segmentation.labels,
+    };
   }
 );
 

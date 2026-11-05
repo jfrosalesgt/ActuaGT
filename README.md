@@ -21,7 +21,7 @@ Citizens report urban problems (potholes, water leaks, broken streetlights, tras
 | Android | AGP 8.13, Credential Manager Google Sign-In, Maps Compose, Play Location |
 | Data | GitLive SDK 2.5.0 (Auth, Firestore, Storage, Functions), Firebase BoM 35.1.0 |
 | Backend | Cloud Functions (Node 22, TypeScript), Firestore rules + indexes, Storage rules, daily orphan sweep |
-| AI | Muse Spark `muse-spark-1.3` via `https://api.meta.ai/v1/chat/completions` (strict-JSON contracts) |
+| AI | Muse Spark `muse-spark-1.3` via `https://api.meta.ai/v1/chat/completions` (strict-JSON contracts) + SAM 3.1 damage overlay (backend-auto, optional) |
 
 Code and comments in English; user-facing UI copy in Spanish.
 
@@ -29,7 +29,7 @@ Code and comments in English; user-facing UI copy in Spanish.
 
 - `shared/` — Kotlin Multiplatform shared logic: screens, models, media bridges (`androidMain`), iOS stubs (`iosMain`)
 - `androidApp/` — Android shell: `MainActivity`, Google Sign-In, file provider
-- `functions/src/` — Cloud Functions: `transcription`, `moderation` (triage + coherence), `escalation`, `official`, `notifications`, `orphan-sweep`
+- `functions/src/` — Cloud Functions: `transcription`, `moderation` (triage + coherence), `sam` (SAM 3.1 damage overlay, backend-auto), `escalation`, `official`, `notifications`, `orphan-sweep`
 - `functions/test/` — backend unit tests (58 green)
 - `firestore.rules`, `firestore.indexes.json`, `storage.rules` — security + indexes
 
@@ -40,7 +40,10 @@ Prerequisites: JDK 17, Android SDK, Node 22, Firebase CLI logged into the projec
 1. Android secrets (never commit): place `google-services.json` in `androidApp/` and define SDK paths in `local.properties`.
 2. Muse API key for the backend:
    `firebase functions:secrets:set MUSE_API_KEY`
-3. Install backend deps: `npm --prefix functions install`
+3. SAM 3.1 (optional, backend-auto): point to a hosted endpoint; when unset, moderation works unchanged without overlay:
+   `firebase functions:secrets:set SAM_API_URL` (e.g. your FastAPI/HF/Replicate proxy)
+   `firebase functions:secrets:set SAM_API_TOKEN` (optional bearer)
+4. Install backend deps: `npm --prefix functions install`
 
 ## Commands
 
