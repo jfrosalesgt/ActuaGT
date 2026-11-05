@@ -49,6 +49,19 @@ enum class ProofReview {
 }
 
 // Citizen infrastructure report stored in Firestore.
+// Damage overlay (SAM 3.1, backend-auto): written by Cloud Functions after
+// moderation approval. Null when segmentation is unavailable; the app must
+// render the report identically with or without it.
+@Serializable
+data class DamageBoxDto(
+    val x1: Double = 0.0,
+    val y1: Double = 0.0,
+    val x2: Double = 0.0,
+    val y2: Double = 0.0,
+    val score: Double = 0.0,
+    val label: String = "",
+)
+
 @Serializable
 data class IncidentReport(
     val id: String = "",
@@ -67,4 +80,8 @@ data class IncidentReport(
     val proofReviewReason: String? = null,
     val reportedByUid: String = "",
     val createdAtEpochMillis: Long = 0L,
+    val damageScore: Double? = null,
+    val damageBoxes: List<DamageBoxDto>? = null,
+    val damageLabels: List<String>? = null,
+    val damageSegmentedAt: Long? = null,
 )
